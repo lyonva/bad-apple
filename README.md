@@ -1,22 +1,23 @@
 # About
-This repository implements __Discriminative-model-based Episodic Intrinsic Reward (DEIR)__, an exploration method for reinforcement learning that has been found to be particularly effective in environments with stochasticity and partial observability.
-More details can be found in the original paper "_DEIR: Efficient and Robust Exploration through Discriminative-Model-Based Episodic Intrinsic Rewards_" ([arXiv preprint](https://arxiv.org/abs/2304.10770), to appear at [IJCAI 2023](https://ijcai-23.org/)).
-
-Our PPO implementation is based on [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3/tree/master). In case you are mainly interested in the implementation of DEIR, its major components can be found at [src/algo/intrinsic_rewards/deir.py](https://github.com/swan-utokyo/deir/blob/main/src/algo/intrinsic_rewards/deir.py).
-
-### Demos
-Video demos of DEIR: (1) [Introduction & MiniGrid demo](https://youtu.be/VDnkFuGKZC0), (2) [ProcGen demo](https://youtu.be/ljmiXwKq1u8).
-
-<img src="https://github.com/swan-utokyo/deir/assets/132561960/79235738-7a41-4a66-afb8-dc15325f40f9" width="480">
+Clone of [__Discriminative-model-based Episodic Intrinsic Reward (DEIR)__](https://github.com/swan-utokyo/deir), adapted to Gymnasium 1.0 and MiniGrid 3.0. ProcGen was removed.
 
 # Usage
 ### Installation
+Clone the repo, then:
+
 ```commandline
-conda create -n deir python=3.9
-conda activate deir 
-git clone https://github.com/swan-utokyo/deir.git
-cd deir
+conda create -n bad-apple python=3.11
+conda activate bad-apple
 python3 -m pip install -r requirements.txt
+```
+
+### Train PPO+RND on MiniGrid
+```commandline
+PYTHONPATH=./ python3 src/train.py \
+  --int_rew_source=RND \
+  --env_source=minigrid \
+  --game_name=DoorKey-8x8 \
+  --model_features_dim=64
 ```
 
 ### Train DEIR on MiniGrid
@@ -55,21 +56,6 @@ run:  0  iters: 12  frames: 98304  rew: 0.784067  rollout: 8.869 sec  train: 1.8
 run:  0  iters: 13  frames: 106496  rew: 0.844819  rollout: 9.068 sec  train: 1.740 sec
 run:  0  iters: 14  frames: 114688  rew: 0.892450  rollout: 8.077 sec  train: 1.745 sec
 run:  0  iters: 15  frames: 122880  rew: 0.908270  rollout: 7.873 sec  train: 1.738 sec
-```
-
-### Train DEIR on ProcGen
-```commandline
-PYTHONPATH=./ python3 src/train.py \
-  --int_rew_source=DEIR \
-  --env_source=procgen --game_name=ninja --total_steps=100_000_000 \
-  --num_processes=64 --n_steps=256 --batch_size=2048 \
-  --n_epochs=3 --model_n_epochs=3 \
-  --learning_rate=1e-4 --model_learning_rate=1e-4 \
-  --policy_cnn_type=2 --features_dim=256 --latents_dim=256 \
-  --model_cnn_type=1 --model_features_dim=64 --model_latents_dim=256 \
-  --policy_cnn_norm=LayerNorm --policy_mlp_norm=NoNorm \
-  --model_cnn_norm=LayerNorm --model_mlp_norm=NoNorm \
-  --adv_norm=0 --adv_eps=1e-5 --adv_momentum=0.9
 ```
 
 ### Example of Training Baselines
