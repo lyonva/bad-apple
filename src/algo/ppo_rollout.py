@@ -1,10 +1,10 @@
-import gym
+import gymnasium as gym
 import numpy as np
 import time
 import torch as th
 import wandb
 
-from gym_minigrid.minigrid import Key, Door, Goal
+from minigrid.core.world_object import Key, Door, Goal
 
 from matplotlib import pyplot as plt
 
@@ -54,7 +54,6 @@ class PPORollout(BaseAlgorithm):
         max_grad_norm: float,
         use_sde: bool,
         sde_sample_freq: int,
-        policy_base: Type[BasePolicy] = ActorCriticPolicy,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -72,7 +71,6 @@ class PPORollout(BaseAlgorithm):
         super(PPORollout, self).__init__(
             policy=policy,
             env=env,
-            policy_base=policy_base,
             learning_rate=learning_rate,
             policy_kwargs=policy_kwargs,
             verbose=verbose,
@@ -720,17 +718,17 @@ class PPORollout(BaseAlgorithm):
         total_timesteps: int,
         callback: MaybeCallback = None,
         log_interval: int = 1,
-        eval_env: Optional[GymEnv] = None,
-        eval_freq: int = -1,
-        n_eval_episodes: int = 5,
         tb_log_name: str = "CustomOnPolicyAlgorithm",
-        eval_log_path: Optional[str] = None,
-        reset_num_timesteps: bool = True,
+        progress_bar: bool = False,
     ) -> "PPORollout":
         self.iteration = 0
 
         total_timesteps, callback = self._setup_learn(
-            total_timesteps, eval_env, callback, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
+            total_timesteps,
+            callback,
+            log_interval,
+            tb_log_name,
+            progress_bar
         )
         self.total_timesteps = total_timesteps
         callback.on_training_start(locals(), globals())

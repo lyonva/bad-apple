@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import numpy as np
 
 from src.algo.intrinsic_rewards.deir import DiscriminatorModel
@@ -146,11 +146,12 @@ class PPOModel(ActorCriticCnnPolicy):
             use_sde,
             log_std_init,
             full_std,
-            sde_net_arch,
+            # sde_net_arch,
             use_expln,
             squash_output,
             self.policy_features_extractor_class,
             self.policy_features_extractor_kwargs,
+            True,
             normalize_images,
             optimizer_class,
             optimizer_kwargs,
@@ -294,7 +295,7 @@ class PPOModel(ActorCriticCnnPolicy):
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
         values = self.value_net(latent_vf)
-        distribution = self._get_action_dist_from_latent(latent_pi, latent_sde=latent_sde)
+        distribution = self._get_action_dist_from_latent(latent_pi)
         actions = distribution.get_actions(deterministic=deterministic)
         log_prob = distribution.log_prob(actions)
         return actions, values, log_prob, memories
@@ -302,7 +303,7 @@ class PPOModel(ActorCriticCnnPolicy):
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
-        distribution = self._get_action_dist_from_latent(latent_pi, latent_sde)
+        distribution = self._get_action_dist_from_latent(latent_pi)
         log_prob = distribution.log_prob(act)
         values = self.value_net(latent_vf)
         return values, log_prob, distribution.entropy(), memories

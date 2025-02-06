@@ -1,12 +1,12 @@
 import warnings
 from typing import Callable, List, Optional, Union, Sequence, Dict
 
-import gym
+import gymnasium as gym
 import numpy as np
 from numpy import ndarray
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
 from stable_baselines3.common.vec_env.base_vec_env import tile_images, VecEnvStepReturn
-from stable_baselines3.common.vec_env.subproc_vec_env import _flatten_obs
+from stable_baselines3.common.vec_env.subproc_vec_env import _stack_obs
 
 
 class CustomSubprocVecEnv(SubprocVecEnv):
@@ -15,21 +15,33 @@ class CustomSubprocVecEnv(SubprocVecEnv):
                  env_fns: List[Callable[[], gym.Env]], 
                  start_method: Optional[str] = None):
         super().__init__(env_fns, start_method)
+        self.n_envs = len(env_fns)
         self.can_see_walls = True
         self.image_noise_scale = 0.0
         self.image_rng = None  # to be initialized with run id in ppo_rollout.py
+        self.seeds = None
+
+    # def seed(self, seeds: List[int] = None) -> List[Union[None, int]]:
+    #     return self.set_seeds(seeds)
 
     def set_seeds(self, seeds: List[int] = None) -> List[Union[None, int]]:
+        # if seeds is None:
+        #     if self.seeds is not None: return
+        #     # To ensure that subprocesses have different seeds,
+        #     # we still populate the seed variable when no argument is passed
+        #     seeds = np.random.randint(0, np.iinfo(np.uint32).max, self.n_envs, dtype=np.uint32)
+        
         self.seeds = seeds
+
         for idx, remote in enumerate(self.remotes):
-            remote.send(("seed", int(seeds[idx])))
+            remote.send(("reset", (int(seeds[idx]), self._options[idx])))
         return [remote.recv() for remote in self.remotes]
 
     def get_seeds(self) -> List[Union[None, int]]:
         return self.seeds
 
     def send_reset(self, env_id: int) -> None:
-        self.remotes[env_id].send(("reset", None))
+        self.remotes[env_id].send(("reset", ((int(self.seeds[env_id]), self._options[env_id]))))
 
     def invisibilize_obstacles(self, obs):
         # Algorithm A5 in the Technical Appendix
@@ -55,7 +67,8 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         return obs + obs_noise
 
     def recv_obs(self, env_id: int) -> ndarray:
-        obs = VecTransposeImage.transpose_image(self.remotes[env_id].recv())
+        obs, _ = self.remotes[env_id].recv()
+        obs = VecTransposeImage.transpose_image(obs)
         if not self.can_see_walls:
             obs = self.invisibilize_obstacles(obs)
         if self.image_noise_scale > 0:
@@ -65,8 +78,8 @@ class CustomSubprocVecEnv(SubprocVecEnv):
     def step_wait(self) -> VecEnvStepReturn:
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
-        obs_arr, rews, dones, infos = zip(*results)
-        obs_arr = _flatten_obs(obs_arr, self.observation_space).astype(np.float64)
+        obs_arr, rews, dones, infos, self.reset_infos = zip(*results)
+        obs_arr = _stack_obs(obs_arr, self.observation_space).astype(np.float64)
         for idx in range(len(obs_arr)):
             if not self.can_see_walls:
                 obs_arr[idx] = self.invisibilize_obstacles(obs_arr[idx])
