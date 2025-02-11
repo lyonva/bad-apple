@@ -41,10 +41,10 @@ class TrainingConfig():
         self.project_name = env_name if project_name is None else project_name
 
     def init_logger(self):
-        if self.group_name is not None:
+        if self.use_wandb:
             self.wandb_run = wandb.init(
-                name=f'run-id-{self.run_id}',
-                entity='abcde-project',  # your project name on wandb
+                name=f'{self.int_rew_source}-{self.run_id}',
+                # entity='minigrid-im',  # your project name on wandb
                 project=self.project_name,
                 group=self.group_name,
                 settings=wandb.Settings(start_method="fork"),

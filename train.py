@@ -124,7 +124,8 @@ def train(config):
 @click.command()
 # Training params
 @click.option('--run_id', default=0, type=int, help='Index (and seed) of the current run')
-@click.option('--group_name', type=str, help='Group name (wandb option), leave blank if not logging with wandb')
+@click.option('--use_wandb', default=0, type=int, help='Whether to log results using wandb')
+@click.option('--group_name', type=str, help='Group name (wandb option)')
 @click.option('--log_dir', default='./logs', type=str, help='Directory for saving training logs')
 @click.option('--total_steps', default=int(1e6), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
@@ -145,7 +146,7 @@ def train(config):
 @click.option('--image_noise_scale', default=0.0, type=float, help='Standard deviation of the Gaussian noise')
 @click.option('--procgen_mode', default='hard', type=str, help='Mode of ProcGen games (easy or hard)')
 @click.option('--procgen_num_threads', default=4, type=int, help='Number of parallel ProcGen threads')
-@click.option('--log_explored_states', default=0, type=int, help='Whether to log the number of explored states')
+@click.option('--log_explored_states', default=1, type=int, help='Whether to log the number of explored states')
 @click.option('--fixed_seed', default=-1, type=int, help='Whether to use a fixed env seed (MiniGrid)')
 # Algo params
 @click.option('--n_epochs', default=4, type=int, help='Number of epochs to train policy and value nets')
@@ -226,7 +227,7 @@ def train(config):
 @click.option('--use_status_predictor', default=0, type=int,
               help='Whether to train status predictors for analysis (MiniGrid only)')
 def main(
-    run_id, group_name, log_dir, total_steps, features_dim, model_features_dim, learning_rate, model_learning_rate,
+    run_id, use_wandb, group_name, log_dir, total_steps, features_dim, model_features_dim, learning_rate, model_learning_rate,
     num_processes, batch_size, n_steps, env_source, game_name, project_name, map_size, can_see_walls, fully_obs,
     image_noise_scale, procgen_mode, procgen_num_threads, log_explored_states, fixed_seed, n_epochs, model_n_epochs,
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,

@@ -85,7 +85,7 @@ class NormType(Enum):
 
 class EnvSrc(Enum):
     MiniGrid = 0
-    ProcGen = 1
+    # ProcGen = 1
 
     @staticmethod
     def get_enum_env_src(env_src):
@@ -95,6 +95,6 @@ class EnvSrc(Enum):
             env_src = env_src.strip().lower()
             if env_src == 'minigrid':
                 return EnvSrc.MiniGrid
-            if env_src == 'procgen':
-                return EnvSrc.ProcGen
+            # if env_src == 'procgen':
+            #     return EnvSrc.ProcGen
         raise ValueError

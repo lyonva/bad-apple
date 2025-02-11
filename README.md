@@ -13,17 +13,29 @@ python3 -m pip install -r requirements.txt
 
 ### Train PPO+RND on MiniGrid
 ```commandline
-PYTHONPATH=./ python3 src/train.py \
+python src/train.py \
   --int_rew_source=RND \
   --env_source=minigrid \
   --game_name=DoorKey-8x8 \
   --model_features_dim=64
 ```
 
+### Train and log results to wandb
+run ```wandb init``` first
+
+```commandline
+python src/train.py \
+  --int_rew_source=RND \
+  --env_source=minigrid \
+  --game_name=DoorKey-8x8 \
+  --model_features_dim=64 \
+  --use_wandb=1
+```
+
 ### Train DEIR on MiniGrid
 Run the below command in the root directory of this repository to train a DEIR agent in the standard _DoorKey-8x8_ (MiniGrid) environment.
 ```commandline
-PYTHONPATH=./ python3 src/train.py \
+python src/train.py \
   --int_rew_source=DEIR \
   --env_source=minigrid \
   --game_name=DoorKey-8x8
@@ -31,7 +43,7 @@ PYTHONPATH=./ python3 src/train.py \
 
 ### Train DEIR on MiniGrid with advanced settings
 ```commandline
-PYTHONPATH=./ python3 src/train.py \
+python src/train.py \
   --int_rew_source=DEIR \
   --env_source=minigrid \
   --game_name=DoorKey-8x8-ViewSize-3x3 \
@@ -61,7 +73,7 @@ run:  0  iters: 15  frames: 122880  rew: 0.908270  rollout: 7.873 sec  train: 1.
 ### Example of Training Baselines
 Please note that the default value of each option in `src/train.py` is optimized for DEIR. For now, when training other methods, please use the corresponding hyperparameter values specified in Table A1 (in our [arXiv preprint](https://arxiv.org/abs/2304.10770)). An example is `--int_rew_coef=3e-2` and `--rnd_err_norm=0` in the below command.
 ```commandline
-PYTHONPATH=./ python3 src/train.py \
+python src/train.py \
   --int_rew_source=NovelD \
   --env_source=minigrid \
   --game_name=DoorKey-8x8 \

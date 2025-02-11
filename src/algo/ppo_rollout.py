@@ -307,7 +307,7 @@ class PPORollout(BaseAlgorithm):
                 agent_positions = np.array(self.env.get_attr('agent_pos'))
                 for env_id in range(self.n_envs):
                     c, r = agent_positions[env_id]
-
+                    
                     # count the visited positions
                     pos = c * self.width + r
                     pos_visit_count = self.global_episode_visited_positions[env_id]
@@ -340,24 +340,24 @@ class PPORollout(BaseAlgorithm):
                         self.global_reward_map_sums[r, c] += intrinsic_rewards[env_id]
                         self.global_reward_map_nums[r, c] += 1
 
-            elif self.env_source == EnvSrc.ProcGen:
-                for env_id in range(self.n_envs):
-                    # In Procgen games, the counted "states" are observations
-                    env_hash = tuple(self._last_obs[env_id].reshape(-1).tolist())
+            # elif self.env_source == EnvSrc.ProcGen:
+            #     for env_id in range(self.n_envs):
+            #         # In Procgen games, the counted "states" are observations
+            #         env_hash = tuple(self._last_obs[env_id].reshape(-1).tolist())
 
-                    if env_hash in self.global_episode_visited_states[env_id]:
-                        self.global_episode_visited_states[env_id][env_hash] += 1
-                    else:
-                        self.global_episode_visited_states[env_id][env_hash] = 1
-                        self.global_episode_unique_states[env_id] += 1
-                        self.rollout_episode_unique_states += 1
+            #         if env_hash in self.global_episode_visited_states[env_id]:
+            #             self.global_episode_visited_states[env_id][env_hash] += 1
+            #         else:
+            #             self.global_episode_visited_states[env_id][env_hash] = 1
+            #             self.global_episode_unique_states[env_id] += 1
+            #             self.rollout_episode_unique_states += 1
 
-                    if self.log_explored_states == 1:
-                        if env_hash in self.global_lifelong_visited_states:
-                            self.global_lifelong_visited_states[env_hash] += 1
-                        else:
-                            self.global_lifelong_visited_states[env_hash] = 1
-                            self.global_lifelong_unique_states += 1
+            #         if self.log_explored_states == 1:
+            #             if env_hash in self.global_lifelong_visited_states:
+            #                 self.global_lifelong_visited_states[env_hash] += 1
+            #             else:
+            #                 self.global_lifelong_visited_states[env_hash] = 1
+            #                 self.global_lifelong_unique_states += 1
 
 
     def clear_on_episode_end(self, dones, policy_mems, model_mems):
