@@ -4,6 +4,8 @@ import torch as th
 from torch import nn
 from typing import Optional, Callable
 from src.utils.enum_types import NormType, EnvSrc, ModelType
+from minigrid.core.grid import Grid
+from minigrid.core.world_object import Door
 
 
 def bkdr_hash(inputs, seed=131, mask=0x7fffffff):
@@ -99,3 +101,13 @@ def init_module_with_name(n: str, m: nn.Module, fn: Callable[['Module'], None] =
             fn(m)
         th.manual_seed(run_id)
     return m
+
+def count_traversable_tiles(grid: Grid) -> int:
+    tiles = 0
+    w, h = grid.width, grid.height
+    for i in range(w):
+        for j in range(h):
+            o = grid.get(i, j)
+            if o is None or o.can_overlap() or o.can_pickup() or type(o) == Door:
+                tiles += 1
+    return tiles

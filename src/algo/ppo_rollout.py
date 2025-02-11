@@ -194,6 +194,11 @@ class PPORollout(BaseAlgorithm):
         self.global_episode_visited_positions = [dict() for _ in range(self.n_envs)]
         self.global_episode_visited_pos_sum = np.zeros(self.n_envs, dtype=np.float32)
 
+        self.global_lifelong_visited_positions = [dict() for _ in range(self.n_envs)]
+        self.global_lifelong_visited_pos_sum = np.zeros(self.n_envs, dtype=np.float32)
+        
+        self.global_lifelong_total_rewards = 0
+
         self.global_episode_steps = np.zeros(self.n_envs, dtype=np.int32)
         if self.policy.use_status_predictor:
             self.global_has_keys = np.zeros(self.n_envs, dtype=np.int32)
@@ -298,6 +303,10 @@ class PPORollout(BaseAlgorithm):
         self.global_episode_intrinsic_rewards += intrinsic_rewards
         self.global_episode_steps += 1
 
+        for r in rewards:
+            if r > 0:
+                self.global_lifelong_total_rewards += 1
+
         # Logging episodic/lifelong visited states, reward map
         if self.log_explored_states:
             # 0 - Not to log
@@ -316,6 +325,12 @@ class PPORollout(BaseAlgorithm):
                         self.global_episode_visited_pos_sum[env_id] += 1
                     else:
                         pos_visit_count[pos] += 1
+                    
+                    lifelong_pos_visit_count = self.global_lifelong_visited_positions[env_id]
+                    if pos not in lifelong_pos_visit_count:
+                        lifelong_pos_visit_count[pos] = 0
+                        self.global_lifelong_visited_pos_sum[env_id] += 1
+                    lifelong_pos_visit_count[pos] += 1
 
                     env_hash = self._last_state_hash_vals[env_id]
                     if env_hash in self.global_episode_visited_states[env_id]:
@@ -394,6 +409,7 @@ class PPORollout(BaseAlgorithm):
                 "time/total_timesteps": self.num_timesteps,
                 "rollout/ep_rew_mean": self.rollout_sum_rewards / (self.rollout_done_episodes + 1e-8),
                 "rollout/ep_len_mean": self.rollout_done_episode_steps / (self.rollout_done_episodes + 1e-8),
+                "rollout/ll_rew_count" : self.global_lifelong_total_rewards,
                 # unique states / positions
                 "rollout/ep_unique_states": self.rollout_done_episode_unique_states / (
                             self.rollout_done_episodes + 1e-8),
@@ -401,6 +417,7 @@ class PPORollout(BaseAlgorithm):
                 "rollout/ep_unique_states_per_step": self.rollout_episode_unique_states / (
                             self.ppo_rollout_buffer.buffer_size * self.n_envs),
                 "rollout/ll_unique_states_per_step": self.global_lifelong_unique_states / self.num_timesteps,
+                "rollout/ll_unique_positions" : np.mean(self.global_lifelong_visited_pos_sum),
                 # intrinsic rewards
                 "rollout/int_rew_coef": self.ppo_rollout_buffer.int_rew_coef,
                 "rollout/int_rew_buffer_mean": self.ppo_rollout_buffer.int_rew_mean,
