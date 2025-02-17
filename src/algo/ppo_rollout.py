@@ -410,6 +410,7 @@ class PPORollout(BaseAlgorithm):
                 "rollout/ep_rew_mean": self.rollout_sum_rewards / (self.rollout_done_episodes + 1e-8),
                 "rollout/ep_len_mean": self.rollout_done_episode_steps / (self.rollout_done_episodes + 1e-8),
                 "rollout/ll_rew_count" : self.global_lifelong_total_rewards,
+                "rollout/ep_entropy:" : np.mean(self.ppo_rollout_buffer.entropy),
                 # unique states / positions
                 "rollout/ep_unique_states": self.rollout_done_episode_unique_states / (
                             self.rollout_done_episodes + 1e-8),
@@ -637,6 +638,17 @@ class PPORollout(BaseAlgorithm):
                 obs_history=self.episodic_obs_emb_history,
                 stats_logger=self.rollout_stats
             )
+        elif self.int_rew_source == ModelType.MaxEntropy:
+            return self.policy.int_rew_model.get_intrinsic_rewards(
+                curr_obs=curr_obs_tensor,
+                next_obs=next_obs_tensor,
+                last_mems=last_model_mem_tensor,
+                curr_act=curr_act_tensor,
+                curr_dones=done_tensor,
+                entropy=self.entropy,
+                obs_history=self.episodic_obs_emb_history,
+                stats_logger=self.rollout_stats
+            )
         else:
             raise NotImplementedError
         return intrinsic_rewards, model_mems
@@ -670,8 +682,9 @@ class PPORollout(BaseAlgorithm):
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 actions, values, log_probs, policy_mems = \
                     self.policy.forward(obs_tensor, self._last_policy_mems)
+                _, _, entropy, _ = self.policy.evaluate_policy(obs_tensor, actions, self._last_policy_mems)
+                self.entropy = entropy
                 actions = actions.cpu().numpy()
-
             # Rescale and perform action
             clipped_actions = actions
             # Clip the actions to avoid out of bound error
@@ -723,6 +736,7 @@ class PPORollout(BaseAlgorithm):
                 dones,
                 values,
                 log_probs,
+                entropy,
                 self.curr_key_status,
                 self.curr_door_status,
                 self.curr_target_dists,

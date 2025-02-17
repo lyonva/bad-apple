@@ -11,6 +11,7 @@ class RolloutBufferSamples(NamedTuple):
     actions: th.Tensor
     old_values: th.Tensor
     old_log_prob: th.Tensor
+    old_entropy: th.Tensor
     advantages: th.Tensor
     returns: th.Tensor
     curr_key_status: Optional[th.Tensor]

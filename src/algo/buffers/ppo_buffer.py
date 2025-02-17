@@ -82,6 +82,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.episode_dones = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.log_probs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.entropy = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         if self.use_status_predictor:
             self.curr_key_status = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
@@ -162,6 +163,7 @@ class PPORolloutBuffer(BaseBuffer):
         episode_done: np.ndarray,
         value: th.Tensor,
         log_prob: Optional[th.Tensor],
+        entropy: Optional[th.Tensor],
         curr_key_status: Optional[np.ndarray],
         curr_door_status: Optional[np.ndarray],
         curr_target_dist: Optional[np.ndarray],
@@ -186,6 +188,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.episode_dones[self.pos] = np.array(episode_done).copy()
         self.values[self.pos] = value.clone().cpu().numpy().flatten()
         self.log_probs[self.pos] = log_prob.clone().cpu().numpy()
+        self.entropy[self.pos] = entropy.clone().cpu().numpy()
         if self.use_status_predictor:
             self.curr_key_status[self.pos] = np.array(curr_key_status).copy()
             self.curr_door_status[self.pos] = np.array(curr_door_status).copy()
@@ -207,6 +210,7 @@ class PPORolloutBuffer(BaseBuffer):
                 "actions",
                 "values",
                 "log_probs",
+                "entropy",
                 "advantages",
                 "returns",
             ]
@@ -246,6 +250,7 @@ class PPORolloutBuffer(BaseBuffer):
             self.actions[batch_inds],
             self.values[batch_inds].flatten(),
             self.log_probs[batch_inds].flatten(),
+            self.entropy[batch_inds].flatten(),
             self.advantages[batch_inds].flatten(),
             self.returns[batch_inds].flatten(),
         )

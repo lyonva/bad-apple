@@ -9,6 +9,7 @@ from src.algo.intrinsic_rewards.plain_forward import PlainForwardModel
 from src.algo.intrinsic_rewards.plain_inverse import PlainInverseModel
 from src.algo.intrinsic_rewards.rnd import RNDModel
 from src.algo.intrinsic_rewards.state_count import StateCountModel
+from src.algo.intrinsic_rewards.max_entropy import MaxEntropyModel
 from src.algo.common_models.gru_cell import CustomGRUCell
 from src.algo.common_models.mlps import *
 from src.utils.common_func import init_module_with_name
@@ -234,6 +235,10 @@ class PPOModel(ActorCriticCnnPolicy):
             )
         if self.int_rew_source == ModelType.StateCount:
             self.int_rew_model = StateCountModel(
+                **int_rew_model_kwargs
+            )
+        if self.int_rew_source == ModelType.MaxEntropy:
+            self.int_rew_model = MaxEntropyModel(
                 **int_rew_model_kwargs
             )
 
