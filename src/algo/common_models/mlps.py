@@ -11,7 +11,7 @@ class PolicyValueOutputHeads(nn.Module):
     def __init__(
         self,
         inputs_dim: int,
-        latents_dim: int = 128,
+        latents_dim: int = 64,
         activation_fn: Type[nn.Module] = nn.ReLU,
         mlp_norm: NormType = NormType.NoNorm,
         mlp_layers: int = 1,

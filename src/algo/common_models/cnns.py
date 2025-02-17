@@ -34,15 +34,15 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
                 self.cnn = nn.Sequential(
                     NormType.get_norm_layer_2d(self.norm_type, n_input_channels, self.n_input_size),
 
-                    nn.Conv2d(n_input_channels, 32, (2, 2)),
-                    NormType.get_norm_layer_2d(self.norm_type, 32, self.n_input_size - 1),
+                    nn.Conv2d(n_input_channels, 16, (2, 2)),
+                    NormType.get_norm_layer_2d(self.norm_type, 16, self.n_input_size - 1),
+                    activation_fn(),
+
+                    nn.Conv2d(16, 32, (2, 2)),
+                    NormType.get_norm_layer_2d(self.norm_type, 32, self.n_input_size - 2),
                     activation_fn(),
 
                     nn.Conv2d(32, 64, (2, 2)),
-                    NormType.get_norm_layer_2d(self.norm_type, 64, self.n_input_size - 2),
-                    activation_fn(),
-
-                    nn.Conv2d(64, 64, (2, 2)),
                     NormType.get_norm_layer_2d(self.norm_type, 64, self.n_input_size - 3),
                     activation_fn(),
 
@@ -52,15 +52,15 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
                 self.cnn = nn.Sequential(
                     NormType.get_norm_layer_2d(self.norm_type, n_input_channels, self.n_input_size),
 
-                    nn.Conv2d(n_input_channels, 32, (2, 2), stride=1, padding=1),
-                    NormType.get_norm_layer_2d(self.norm_type, 32, self.n_input_size + 1),
+                    nn.Conv2d(n_input_channels, 16, (2, 2), stride=1, padding=1),
+                    NormType.get_norm_layer_2d(self.norm_type, 16, self.n_input_size + 1),
+                    activation_fn(),
+
+                    nn.Conv2d(16, 32, (2, 2), stride=1, padding=0),
+                    NormType.get_norm_layer_2d(self.norm_type, 32, self.n_input_size),
                     activation_fn(),
 
                     nn.Conv2d(32, 64, (2, 2), stride=1, padding=0),
-                    NormType.get_norm_layer_2d(self.norm_type, 64, self.n_input_size),
-                    activation_fn(),
-
-                    nn.Conv2d(64, 64, (2, 2), stride=1, padding=0),
                     NormType.get_norm_layer_2d(self.norm_type, 64, self.n_input_size - 1),
                     activation_fn(),
 

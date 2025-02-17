@@ -13,6 +13,7 @@ class ModelType(Enum):
     PlainForward = 6
     PlainInverse = 7
     PlainDiscriminator = 8
+    StateCount = 9
 
     @staticmethod
     def get_enum_model_type(model_type):
@@ -36,6 +37,8 @@ class ModelType(Enum):
                 return ModelType.PlainInverse
             elif model_type == "plaindiscriminator":
                 return ModelType.PlainDiscriminator
+            elif model_type == "statecount":
+                return ModelType.StateCount
             else:
                 return ModelType.NoModel
         raise ValueError

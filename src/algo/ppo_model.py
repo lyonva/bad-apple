@@ -8,6 +8,7 @@ from src.algo.intrinsic_rewards.noveld import NovelDModel
 from src.algo.intrinsic_rewards.plain_forward import PlainForwardModel
 from src.algo.intrinsic_rewards.plain_inverse import PlainInverseModel
 from src.algo.intrinsic_rewards.rnd import RNDModel
+from src.algo.intrinsic_rewards.state_count import StateCountModel
 from src.algo.common_models.gru_cell import CustomGRUCell
 from src.algo.common_models.mlps import *
 from src.utils.common_func import init_module_with_name
@@ -50,7 +51,7 @@ class PPOModel(ActorCriticCnnPolicy):
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
         max_grad_norm: float = 0.5,
         model_features_dim: int = 128,
-        latents_dim: int = 128,
+        latents_dim: int = 64,
         model_latents_dim: int = 128,
         policy_mlp_norm: NormType = NormType.BatchNorm,
         model_mlp_norm: NormType = NormType.BatchNorm,
@@ -230,6 +231,10 @@ class PPOModel(ActorCriticCnnPolicy):
                 rnd_use_policy_emb=self.rnd_use_policy_emb,
                 policy_cnn=self.features_extractor,
                 policy_rnns=self.policy_rnns,
+            )
+        if self.int_rew_source == ModelType.StateCount:
+            self.int_rew_model = StateCountModel(
+                **int_rew_model_kwargs
             )
 
     def _build_mlp_extractor(self) -> None:
