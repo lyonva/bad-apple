@@ -127,7 +127,7 @@ def train(config):
 @click.option('--use_wandb', default=0, type=int, help='Whether to log results using wandb')
 @click.option('--group_name', type=str, help='Group name (wandb option)')
 @click.option('--log_dir', default='./logs', type=str, help='Directory for saving training logs')
-@click.option('--total_steps', default=int(2.5e6), type=int, help='Total number of frames to run for training')
+@click.option('--total_steps', default=int(1e7), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
 @click.option('--model_features_dim', default=128, type=int,
               help='Number of neurons of a learned embedding (dynamics model)')
