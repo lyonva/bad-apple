@@ -47,7 +47,7 @@ class TrainingConfig():
                 # entity='minigrid-im',  # your project name on wandb
                 project=self.project_name,
                 group=self.group_name,
-                settings=wandb.Settings(start_method="fork"),
+                settings=wandb.Settings(start_method="thread"),
                 sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
                 monitor_gym=True,  # auto-upload the videos of agents playing the game
                 save_code=True,  # optional
