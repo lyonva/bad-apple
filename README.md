@@ -33,3 +33,6 @@ python train.py --env_source=minigrid --game_name=DoorKey-16x16 --model_features
 ```
 
 The parameter ```run_id``` is the seed for the run.
+
+### Make multiple runs on wandb
+Depending on your system, use ```run.sh``` or ```run.bat``` to make your shell do multiple runs consecutively. You can adjust the variables within those scripts to alter the MiniGrid map, IM method and seeds.
