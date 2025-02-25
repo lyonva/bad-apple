@@ -65,6 +65,7 @@ def train(config):
         rnd_err_norm=config.rnd_err_norm,
         rnd_err_momentum=config.rnd_err_momentum,
         rnd_use_policy_emb=config.rnd_use_policy_emb,
+        grm_delay=config.grm_delay,
         dsc_obs_queue_len=config.dsc_obs_queue_len,
         log_dsc_verbose=config.log_dsc_verbose,
     )
@@ -187,6 +188,8 @@ def train(config):
               help='Normalized RND errors by: [0] No normalization [1] Standardization [2] Min-max normalization [3] Standardization w.o. subtracting the mean')
 @click.option('--rnd_err_momentum', default=-1, type=float,
               help='EMA smoothing factor for RND error normalization (-1: total average)')
+@click.option('--grm_delay', default=0, type=int,
+              help='D-GRMdelay for intrinsic reward discounting')
 # Network params
 @click.option('--use_model_rnn', default=1, type=int, help='Whether to enable RNNs for the dynamics model')
 @click.option('--latents_dim', default=256, type=int, help='Dimensions of latent features in policy/value nets\' MLPs')
@@ -233,7 +236,7 @@ def main(
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
     adv_momentum, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
-    rnd_err_norm, rnd_err_momentum, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
+    rnd_err_norm, rnd_err_momentum, grm_delay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,
     rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, record_video,
