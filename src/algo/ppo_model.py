@@ -249,6 +249,7 @@ class PPOModel(ActorCriticCnnPolicy):
         if self.int_rew_source == ModelType.GRM:
             self.int_rew_model = GRMModel(
                 **int_rew_model_kwargs,
+                n_envs = self.n_envs,
                 rnd_err_norm=self.rnd_err_norm,
                 rnd_err_momentum=self.rnd_err_momentum,
                 rnd_use_policy_emb=self.rnd_use_policy_emb,

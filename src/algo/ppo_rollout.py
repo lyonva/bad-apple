@@ -649,6 +649,14 @@ class PPORollout(BaseAlgorithm):
                 obs_history=self.episodic_obs_emb_history,
                 stats_logger=self.rollout_stats
             )
+        # GRM
+        elif self.int_rew_source == ModelType.GRM:
+            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                curr_obs=curr_obs_tensor,
+                last_mems=last_model_mem_tensor,
+                curr_dones=done_tensor,
+                stats_logger=self.rollout_stats
+            )
         else:
             raise NotImplementedError
         return intrinsic_rewards, model_mems

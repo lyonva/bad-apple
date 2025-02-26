@@ -32,6 +32,7 @@ class GRMModel(RNDModel):
         gru_layers: int = 1,
         use_status_predictor: int = 0,
         # RND-specific params
+        n_envs: int = 1,
         rnd_err_norm: int = 0,
         rnd_err_momentum: float = -1.0,
         rnd_use_policy_emb: int = 1,
@@ -41,7 +42,7 @@ class GRMModel(RNDModel):
         gamma: int = 0.99,
         grm_delay: int = 0,
     ):
-        super().__init__(observation_space, action_space, activation_fn, normalize_images, optimizer_class,
+        super(GRMModel, self).__init__(observation_space, action_space, activation_fn, normalize_images, optimizer_class,
                          optimizer_kwargs, max_grad_norm, model_learning_rate, model_cnn_features_extractor_class,
                          model_cnn_features_extractor_kwargs, model_features_dim, model_latents_dim, model_mlp_norm,
                          model_cnn_norm, model_gru_norm, use_model_rnn, model_mlp_layers, gru_layers,
@@ -54,7 +55,7 @@ class GRMModel(RNDModel):
 
         self.gamma = gamma
         self.grm_delay = grm_delay
-        self.grm_buffer = np.zeros((observation_space.shape[0], grm_delay))
+        self.grm_buffer = np.zeros((n_envs, grm_delay))
 
 
     def get_intrinsic_rewards(self, curr_obs, last_mems, curr_dones, stats_logger):
@@ -73,24 +74,22 @@ class GRMModel(RNDModel):
                 std=self.rnd_err_running_stats.std,
             )
 
-        
-
         # GRM discount
-        undiscounted_rewards = rnd_rewards.clone()
+        undiscounted_rewards = rnd_rewards.copy()
         n_envs = self.grm_buffer.shape[0]
         rnd_rewards = undiscounted_rewards - self.grm_buffer[:,-1]/(self.gamma**self.grm_delay)
         # Check for episode ends and discount all others if so
         for env in range(n_envs):
             if curr_dones[env] != 0:
                 # Discount all and reset
-                rnd_rewards[env] -= self.grm_buffer[env,0:-1]/()
+                rnd_rewards[env] -= np.sum(self.grm_buffer[env,0:-1]/(self.gamma** np.arange(self.grm_delay-1) ))
+                
 
-        # Log rewards on buffer
-        to_discount = self.grm_buffer[:,-1]
+        # Log rewards on buffer, rewards on timestep D are removed
         self.grm_buffer = np.roll(self.grm_buffer, 1, axis=1)
-        self.grm_buffer[0,:] = undiscounted_rewards
+        self.grm_buffer[:,0] = undiscounted_rewards
 
-        stats_logger.add(rnd_loss=rnd_loss)
+        stats_logger.add(rnd_loss=rnd_rewards)
         return rnd_rewards, model_mems
 
 
