@@ -10,6 +10,7 @@ from src.algo.intrinsic_rewards.plain_inverse import PlainInverseModel
 from src.algo.intrinsic_rewards.rnd import RNDModel
 from src.algo.intrinsic_rewards.state_count import StateCountModel
 from src.algo.intrinsic_rewards.max_entropy import MaxEntropyModel
+from src.algo.intrinsic_rewards.grm import GRMModel
 from src.algo.common_models.gru_cell import CustomGRUCell
 from src.algo.common_models.mlps import *
 from src.utils.common_func import init_module_with_name
@@ -41,6 +42,7 @@ class PPOModel(ActorCriticCnnPolicy):
         log_std_init: float = 0.0,
         full_std: bool = True,
         sde_net_arch: Optional[List[int]] = None,
+        gamma = 0.99,
         use_expln: bool = False,
         squash_output: bool = False,
         policy_features_extractor_class: Type[BaseFeaturesExtractor] = NatureCNN,
@@ -74,6 +76,7 @@ class PPOModel(ActorCriticCnnPolicy):
         rnd_err_norm: int = 0,
         rnd_err_momentum: float = -1,
         rnd_use_policy_emb: int = 0,
+        grm_delay: int = 0,
         dsc_obs_queue_len: int = 0,
         log_dsc_verbose: int = 0,
     ):
@@ -86,6 +89,7 @@ class PPOModel(ActorCriticCnnPolicy):
         self.model_latents_dim = model_latents_dim
         self.action_num = action_space.n
         self.learning_rate = learning_rate
+        self.gamma = gamma
         self.model_learning_rate = model_learning_rate
         self.int_rew_source = int_rew_source
         self.policy_mlp_norm = policy_mlp_norm
@@ -109,6 +113,7 @@ class PPOModel(ActorCriticCnnPolicy):
         self.rnd_err_norm = rnd_err_norm
         self.rnd_err_momentum = rnd_err_momentum
         self.rnd_use_policy_emb = rnd_use_policy_emb
+        self.grm_delay = grm_delay
         self.policy_features_extractor_class = policy_features_extractor_class
         self.policy_features_extractor_kwargs = policy_features_extractor_kwargs
         self.model_cnn_features_extractor_class = model_cnn_features_extractor_class
@@ -240,6 +245,17 @@ class PPOModel(ActorCriticCnnPolicy):
         if self.int_rew_source == ModelType.MaxEntropy:
             self.int_rew_model = MaxEntropyModel(
                 **int_rew_model_kwargs
+            )
+        if self.int_rew_source == ModelType.GRM:
+            self.int_rew_model = GRMModel(
+                **int_rew_model_kwargs,
+                rnd_err_norm=self.rnd_err_norm,
+                rnd_err_momentum=self.rnd_err_momentum,
+                rnd_use_policy_emb=self.rnd_use_policy_emb,
+                policy_cnn=self.features_extractor,
+                policy_rnns=self.policy_rnns,
+                gamma=gamma,
+                grm_delay=grm_delay,
             )
 
     def _build_mlp_extractor(self) -> None:

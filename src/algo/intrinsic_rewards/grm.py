@@ -38,6 +38,7 @@ class GRMModel(RNDModel):
         policy_cnn: Type[nn.Module] = None,
         policy_rnns: Type[nn.Module] = None,
         # GRM-specific params
+        gamma: int = 0.99,
         grm_delay: int = 0,
     ):
         super().__init__(observation_space, action_space, activation_fn, normalize_images, optimizer_class,
@@ -51,6 +52,7 @@ class GRMModel(RNDModel):
         # self._init_modules()
         # self._init_optimizers()
 
+        self.gamma = gamma
         self.grm_delay = grm_delay
         self.grm_buffer = np.zeros((observation_space.shape[0], grm_delay))
 
@@ -71,9 +73,22 @@ class GRMModel(RNDModel):
                 std=self.rnd_err_running_stats.std,
             )
 
+        
+
         # GRM discount
         undiscounted_rewards = rnd_rewards.clone()
-        
+        n_envs = self.grm_buffer.shape[0]
+        rnd_rewards = undiscounted_rewards - self.grm_buffer[:,-1]/(self.gamma**self.grm_delay)
+        # Check for episode ends and discount all others if so
+        for env in range(n_envs):
+            if curr_dones[env] != 0:
+                # Discount all and reset
+                rnd_rewards[env] -= self.grm_buffer[env,0:-1]/()
+
+        # Log rewards on buffer
+        to_discount = self.grm_buffer[:,-1]
+        self.grm_buffer = np.roll(self.grm_buffer, 1, axis=1)
+        self.grm_buffer[0,:] = undiscounted_rewards
 
         stats_logger.add(rnd_loss=rnd_loss)
         return rnd_rewards, model_mems

@@ -34,6 +34,7 @@ def train(config):
         n_envs=config.num_processes,
         activation_fn=activation_fn,
         learning_rate=config.learning_rate,
+        gamma=config.gamma,
         model_learning_rate=config.model_learning_rate,
         policy_features_extractor_class=policy_features_extractor_class,
         policy_features_extractor_kwargs=features_extractor_common_kwargs,
