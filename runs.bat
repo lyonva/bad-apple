@@ -1,5 +1,5 @@
-SET map=Doorkey-16x16
-SET im=RND
+SET map=DoorKey-16x16
+SET im=NoModel
 SET seeds=(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 (for %%s in %seeds% do (
