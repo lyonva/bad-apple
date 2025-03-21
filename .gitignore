@@ -3,6 +3,9 @@
 logs/
 wandb/
 
+# Data
+analysis/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
