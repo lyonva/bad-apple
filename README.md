@@ -8,7 +8,7 @@ Clone the repo, then:
 ```commandline
 conda create -n bad-apple python=3.11
 conda activate bad-apple
-python3 -m pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Optionally, set up torch with cuda after installing the requirements:
