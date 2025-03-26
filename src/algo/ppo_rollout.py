@@ -64,6 +64,7 @@ class PPORollout(BaseAlgorithm):
         fixed_seed: Optional[int] = None,
         plot_interval: int = 10,
         plot_colormap: str = "Blues",
+        model_recs: list = None,
         log_explored_states: Optional[int] = None,
         local_logger: Optional[LocalLogger] = None,
         use_wandb: bool = False,
@@ -108,6 +109,7 @@ class PPORollout(BaseAlgorithm):
         self.fixed_seed = fixed_seed
         self.plot_interval = plot_interval
         self.plot_colormap = plot_colormap
+        self.model_recs = model_recs
         self.log_explored_states = log_explored_states
         self.local_logger = local_logger
         self.use_wandb = use_wandb
@@ -524,6 +526,12 @@ class PPORollout(BaseAlgorithm):
                 self.global_reward_map_nums = np.zeros([self.width, self.height], dtype=np.int32)
                 self.global_value_map_sums = np.zeros([self.width, self.height], dtype=np.float64)
                 self.global_value_map_nums = np.zeros([self.width, self.height], dtype=np.int32)
+        
+        # Record model snapshots on wandb
+        if self.use_wandb and self.model_recs is not None and \
+                ((type(self.model_recs)==list and self.iteration in self.model_recs) \
+                or (type(self.model_recs)==int and self.iteration == self.model_recs) ):
+            wandb.log_model(path="models", name=f"snapshot-{self.iteration}")
 
 
     def create_intrinsic_rewards(self, new_obs, actions, dones):

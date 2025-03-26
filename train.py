@@ -1,4 +1,5 @@
 import click
+import ast
 import warnings
 import torch as th
 
@@ -11,6 +12,13 @@ from stable_baselines3.common.utils import set_random_seed
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+# From: https://stackoverflow.com/questions/47631914/how-to-pass-several-list-of-arguments-to-click-option
+class PythonLiteralOption(click.Option):
+    def type_cast_value(self, ctx, value):
+        try:
+            return ast.literal_eval(value)
+        except:
+            raise click.BadParameter(value)
 
 def train(config):
     th.autograd.set_detect_anomaly(False)
@@ -111,6 +119,7 @@ def train(config):
         enable_plotting=config.enable_plotting,
         plot_interval=config.plot_interval,
         plot_colormap=config.plot_colormap,
+        model_recs=config.model_recs,
         log_explored_states=config.log_explored_states,
         verbose=0,
     )
@@ -129,6 +138,7 @@ def train(config):
 @click.option('--use_wandb', default=0, type=int, help='Whether to log results using wandb')
 @click.option('--group_name', type=str, help='Group name (wandb option)')
 @click.option('--log_dir', default='./logs', type=str, help='Directory for saving training logs')
+@click.option('--model_dir', default='./models', type=str, help='Directory for saving model snapshots')
 @click.option('--total_steps', default=int(1e7), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
 @click.option('--model_features_dim', default=128, type=int,
@@ -139,7 +149,7 @@ def train(config):
 @click.option('--batch_size', default=512, type=int, help='Batch size')
 @click.option('--n_steps', default=512, type=int, help='Number of steps to run for each process per update')
 # Env params
-@click.option('--env_source', default='minigrid', type=str, help='minigrid or procgen')
+@click.option('--env_source', default='minigrid', type=str, help='minigrid or minigrid (no procgen support)')
 @click.option('--game_name', default="DoorKey-8x8", type=str, help='e.g. DoorKey-8x8, ninja, jumper')
 @click.option('--project_name', required=False, type=str, help='Where to store training logs (wandb option)')
 @click.option('--map_size', default=5, type=int, help='Size of the minigrid room')
@@ -223,6 +233,7 @@ def train(config):
 @click.option('--enable_plotting', default=0, type=int, help='Whether to generate plots for analysis')
 @click.option('--plot_interval', default=10, type=int, help='Interval of generating plots (iterations)')
 @click.option('--plot_colormap', default='Blues', type=str, help='Colormap of plots to generate')
+@click.option('--model_recs', default='[]', cls=PythonLiteralOption, help='Iterations on which snapshots of the model are logged')
 @click.option('--record_video', default=0, type=int, help='Whether to record video')
 @click.option('--rec_interval', default=10, type=int, help='Interval of two videos (iterations)')
 @click.option('--video_length', default=512, type=int, help='Length of the video (frames)')
@@ -231,7 +242,7 @@ def train(config):
 @click.option('--use_status_predictor', default=0, type=int,
               help='Whether to train status predictors for analysis (MiniGrid only)')
 def main(
-    run_id, use_wandb, group_name, log_dir, total_steps, features_dim, model_features_dim, learning_rate, model_learning_rate,
+    run_id, use_wandb, group_name, log_dir, model_dir, total_steps, features_dim, model_features_dim, learning_rate, model_learning_rate,
     num_processes, batch_size, n_steps, env_source, game_name, project_name, map_size, can_see_walls, fully_obs,
     image_noise_scale, procgen_mode, procgen_num_threads, log_explored_states, fixed_seed, n_epochs, model_n_epochs,
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
@@ -240,7 +251,7 @@ def main(
     rnd_err_norm, rnd_err_momentum, grm_delay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,
-    rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, record_video,
+    rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, model_recs, record_video,
     rec_interval, video_length, log_dsc_verbose, env_render, use_status_predictor
 ):
     set_random_seed(run_id, using_cuda=True)
