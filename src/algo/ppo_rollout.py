@@ -528,10 +528,11 @@ class PPORollout(BaseAlgorithm):
                 self.global_value_map_nums = np.zeros([self.width, self.height], dtype=np.int32)
         
         # Record model snapshots on wandb
-        if self.use_wandb and self.model_recs is not None and \
+        if self.use_wandb and self.model_recs is not None and self.local_logger is not None and \
                 ((type(self.model_recs)==list and self.iteration in self.model_recs) \
                 or (type(self.model_recs)==int and self.iteration == self.model_recs) ):
-            wandb.log_model(path="models", name=f"snapshot-{self.iteration}")
+            path = self.local_logger.write_model(self, f"snapshot-{self.iteration}")
+            wandb.log_model(path=path, name=f"{wandb.run.name}_snapshot-{self.iteration}")
 
 
     def create_intrinsic_rewards(self, new_obs, actions, dones):

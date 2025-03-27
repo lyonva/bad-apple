@@ -62,7 +62,7 @@ class TrainingConfig():
         os.makedirs(self.log_dir, exist_ok=True)
         os.makedirs(self.model_dir, exist_ok=True)
         if self.write_local_logs:
-            self.local_logger = LocalLogger(self.log_dir)
+            self.local_logger = LocalLogger(self.log_dir, self.model_dir)
             print(f'Writing local logs at {self.log_dir}')
         else:
             self.local_logger = None
