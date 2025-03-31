@@ -25,7 +25,7 @@ class PPOTrainer(PPORollout):
         self,
         policy: Union[str, Type[ActorCriticPolicy]],
         env: Union[GymEnv, str],
-        run_id: int,
+        run_id: int=0,
         learning_rate: Union[float, Schedule] = 3e-4,
         model_learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,

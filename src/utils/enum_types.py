@@ -16,6 +16,7 @@ class ModelType(Enum):
     StateCount = 9
     MaxEntropy = 10
     GRM = 11
+    StateCountGRM = 12
 
     @staticmethod
     def get_enum_model_type(model_type):
@@ -45,6 +46,8 @@ class ModelType(Enum):
                 return ModelType.MaxEntropy
             elif model_type == "grm":
                 return ModelType.GRM
+            elif model_type == "statecountgrm":
+                return ModelType.StateCountGRM
             else:
                 return ModelType.NoModel
         raise ValueError

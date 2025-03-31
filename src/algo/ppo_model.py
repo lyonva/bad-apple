@@ -11,6 +11,7 @@ from src.algo.intrinsic_rewards.rnd import RNDModel
 from src.algo.intrinsic_rewards.state_count import StateCountModel
 from src.algo.intrinsic_rewards.max_entropy import MaxEntropyModel
 from src.algo.intrinsic_rewards.grm import GRMModel
+from src.algo.intrinsic_rewards.state_count_grm import StateCountGRMModel
 from src.algo.common_models.gru_cell import CustomGRUCell
 from src.algo.common_models.mlps import *
 from src.utils.common_func import init_module_with_name
@@ -255,6 +256,13 @@ class PPOModel(ActorCriticCnnPolicy):
                 rnd_use_policy_emb=self.rnd_use_policy_emb,
                 policy_cnn=self.features_extractor,
                 policy_rnns=self.policy_rnns,
+                gamma=gamma,
+                grm_delay=grm_delay,
+            )
+        if self.int_rew_source == ModelType.StateCountGRM:
+            self.int_rew_model = StateCountGRMModel(
+                **int_rew_model_kwargs,
+                n_envs = self.n_envs,
                 gamma=gamma,
                 grm_delay=grm_delay,
             )
