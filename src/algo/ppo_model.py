@@ -43,7 +43,7 @@ class PPOModel(ActorCriticCnnPolicy):
         log_std_init: float = 0.0,
         full_std: bool = True,
         sde_net_arch: Optional[List[int]] = None,
-        gamma = 0.99,
+        gamma: float = 0.99,
         use_expln: bool = False,
         squash_output: bool = False,
         policy_features_extractor_class: Type[BaseFeaturesExtractor] = NatureCNN,
@@ -58,6 +58,7 @@ class PPOModel(ActorCriticCnnPolicy):
         latents_dim: int = 64,
         model_latents_dim: int = 128,
         policy_mlp_norm: NormType = NormType.BatchNorm,
+        policy_int_out: int = 0,
         model_mlp_norm: NormType = NormType.BatchNorm,
         model_cnn_norm: NormType = NormType.BatchNorm,
         policy_gru_norm: NormType = NormType.NoNorm,
@@ -94,6 +95,7 @@ class PPOModel(ActorCriticCnnPolicy):
         self.model_learning_rate = model_learning_rate
         self.int_rew_source = int_rew_source
         self.policy_mlp_norm = policy_mlp_norm
+        self.policy_int_out = policy_int_out
         self.model_mlp_norm = model_mlp_norm
         self.model_cnn_norm = model_cnn_norm
         self.policy_gru_norm = policy_gru_norm
