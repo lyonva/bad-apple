@@ -387,7 +387,8 @@ class PPOModel(ActorCriticCnnPolicy):
         actions = distribution.get_actions(deterministic=deterministic)
         log_prob = distribution.log_prob(actions) 
         values = self.value_net(latent_vf)
-        return actions, values, log_prob, memories
+        ext_values, int_values = values[:,0], values[:,1]
+        return actions, ext_values, int_values, log_prob, memories
 
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -395,4 +396,5 @@ class PPOModel(ActorCriticCnnPolicy):
         distribution = self._get_action_dist_from_latent(latent_pi)
         log_prob = distribution.log_prob(act)
         values = self.value_net(latent_vf)
-        return values, log_prob, distribution.entropy(), memories
+        ext_values, int_values = values[:,0], values[:,1]
+        return ext_values, int_values, log_prob, distribution.entropy(), memories
