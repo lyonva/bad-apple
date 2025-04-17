@@ -238,7 +238,7 @@ class PPORollout(BaseAlgorithm):
         self.rollout_done_episode_unique_states = 0
 
 
-    def log_before_transition(self, values):
+    def log_before_transition(self, ext_values, int_values):
         if self.env_source == EnvSrc.MiniGrid:
             self._last_state_hash_vals = self.env.env_method('hash')
 
@@ -282,7 +282,7 @@ class PPORollout(BaseAlgorithm):
             for i in range(self.n_envs):
                 c, r = agent_positions[i]
                 self.global_visit_counts[r, c] += 1
-                self.global_value_map_sums[r, c] += values[i].item()
+                self.global_value_map_sums[r, c] += ext_values[i].item() + int_values[i].item()
                 self.global_value_map_nums[r, c] += 1
 
             # Current agent position
@@ -709,9 +709,9 @@ class PPORollout(BaseAlgorithm):
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
-                actions, values, log_probs, policy_mems = \
+                actions, ext_values, int_values, log_probs, policy_mems = \
                     self.policy.forward(obs_tensor, self._last_policy_mems)
-                _, _, entropy, _ = self.policy.evaluate_policy(obs_tensor, actions, self._last_policy_mems)
+                _, _, _, entropy, _ = self.policy.evaluate_policy(obs_tensor, actions, self._last_policy_mems)
                 self.entropy = entropy
                 actions = actions.cpu().numpy()
             # Rescale and perform action
@@ -721,7 +721,7 @@ class PPORollout(BaseAlgorithm):
                 clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
 
             # Log before a transition
-            self.log_before_transition(values)
+            self.log_before_transition(ext_values, int_values)
 
             # Transition
             new_obs, rewards, dones, infos = env.step(clipped_actions)
@@ -733,7 +733,7 @@ class PPORollout(BaseAlgorithm):
             with th.no_grad():
                 # Compute value for the last timestep
                 new_obs_tensor = obs_as_tensor(new_obs, self.device)
-                _, new_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
+                _, new_ext_values, new_ext_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
 
             # IR Generation
             intrinsic_rewards, model_mems = \
