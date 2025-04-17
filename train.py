@@ -55,7 +55,6 @@ def train(config):
         latents_dim=config.latents_dim,
         model_latents_dim=config.model_latents_dim,
         policy_mlp_norm=config.policy_mlp_norm,
-        policy_int_out=config.policy_int_out,
         model_mlp_norm=config.model_mlp_norm,
         model_cnn_norm=config.model_cnn_norm,
         model_mlp_layers=config.model_mlp_layers,
@@ -209,7 +208,6 @@ def train(config):
 @click.option('--policy_mlp_layers', default=1, type=int, help='Number of latent layers used in the policy\'s MLP')
 @click.option('--policy_cnn_norm', default='BatchNorm', type=str, help='Normalization type for policy/value nets\' CNN')
 @click.option('--policy_mlp_norm', default='BatchNorm', type=str, help='Normalization type for policy/value nets\' MLP')
-@click.option('--policy_int_out', default=0, type=int, help='Add value head for intrinsic rewards, requisite for ADOPS')
 @click.option('--policy_gru_norm', default='NoNorm', type=str, help='Normalization type for policy/value nets\' GRU')
 @click.option('--model_cnn_type', default=0, type=int, help='CNN Structure ([0-2] from small to large)')
 @click.option('--model_mlp_layers', default=1, type=int, help='Number of latent layers used in the model\'s MLP')
@@ -249,7 +247,7 @@ def main(
     adv_momentum, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
     rnd_err_norm, rnd_err_momentum, grm_delay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
-    policy_cnn_norm, policy_mlp_norm, policy_int_out, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
+    policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,
     rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, model_recs, record_video,
     rec_interval, video_length, log_dsc_verbose, env_render, use_status_predictor

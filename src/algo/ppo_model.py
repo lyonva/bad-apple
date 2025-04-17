@@ -69,7 +69,6 @@ class PPOModel(ActorCriticCnnPolicy):
         latents_dim: int = 64,
         model_latents_dim: int = 128,
         policy_mlp_norm: NormType = NormType.BatchNorm,
-        policy_int_out: int = 0,
         model_mlp_norm: NormType = NormType.BatchNorm,
         model_cnn_norm: NormType = NormType.BatchNorm,
         policy_gru_norm: NormType = NormType.NoNorm,
@@ -106,7 +105,6 @@ class PPOModel(ActorCriticCnnPolicy):
         self.model_learning_rate = model_learning_rate
         self.int_rew_source = int_rew_source
         self.policy_mlp_norm = policy_mlp_norm
-        self.policy_int_out = policy_int_out
         self.model_mlp_norm = model_mlp_norm
         self.model_cnn_norm = model_cnn_norm
         self.policy_gru_norm = policy_gru_norm
@@ -303,7 +301,7 @@ class PPOModel(ActorCriticCnnPolicy):
         else:
             raise NotImplementedError(f"Unsupported distribution '{self.action_dist}'.")
 
-        self.value_net = nn.Linear(self.mlp_extractor.latent_dim_vf, 2 if self.policy_int_out==1 else 1)
+        self.value_net = nn.Linear(self.mlp_extractor.latent_dim_vf, 2)
         # Init weights: use orthogonal initialization
         # with small initial weight for the output
         if self.ortho_init:
@@ -387,22 +385,14 @@ class PPOModel(ActorCriticCnnPolicy):
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
         distribution = self._get_action_dist_from_latent(latent_pi)
         actions = distribution.get_actions(deterministic=deterministic)
-        log_prob = distribution.log_prob(actions)
-        if self.policy_int_out:
-            values_ext, values_int = self.value_net(latent_vf)
-            return actions, values_ext, values_int, log_prob, memories
-        else:    
-            values = self.value_net(latent_vf)
-            return actions, values, log_prob, memories
+        log_prob = distribution.log_prob(actions) 
+        values = self.value_net(latent_vf)
+        return actions, values, log_prob, memories
 
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
         distribution = self._get_action_dist_from_latent(latent_pi)
         log_prob = distribution.log_prob(act)
-        if self.policy_int_out:
-            values_ext, values_int = self.value_net(latent_vf)
-            return values_ext, values_int, log_prob, distribution.entropy(), memories
-        else:
-            values = self.value_net(latent_vf)
-            return values, log_prob, distribution.entropy(), memories
+        values = self.value_net(latent_vf)
+        return values, log_prob, distribution.entropy(), memories
