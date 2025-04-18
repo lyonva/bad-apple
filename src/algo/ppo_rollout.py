@@ -447,8 +447,10 @@ class PPORollout(BaseAlgorithm):
 
             if self.adv_norm > 0:
                 log_data.update({
-                    "rollout/adv_mean": np.mean(self.ppo_rollout_buffer.adv_mean),
-                    "rollout/adv_std": np.std(self.ppo_rollout_buffer.adv_std),
+                    "rollout/ext_adv_mean": np.mean(self.ppo_rollout_buffer.ext_adv_mean),
+                    "rollout/ext_adv_std": np.std(self.ppo_rollout_buffer.ext_adv_std),
+                    "rollout/int_adv_mean": np.mean(self.ppo_rollout_buffer.int_adv_mean),
+                    "rollout/int_adv_std": np.std(self.ppo_rollout_buffer.int_adv_std),
                 })
 
             # Update with other stats
@@ -733,7 +735,7 @@ class PPORollout(BaseAlgorithm):
             with th.no_grad():
                 # Compute value for the last timestep
                 new_obs_tensor = obs_as_tensor(new_obs, self.device)
-                _, new_ext_values, new_ext_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
+                _, new_ext_values, new_int_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
 
             # IR Generation
             intrinsic_rewards, model_mems = \
@@ -763,7 +765,8 @@ class PPORollout(BaseAlgorithm):
                 intrinsic_rewards,
                 self._last_episode_starts,
                 dones,
-                values,
+                ext_values,
+                int_values,
                 log_probs,
                 entropy,
                 self.curr_key_status,
@@ -778,7 +781,7 @@ class PPORollout(BaseAlgorithm):
                 self._last_model_mems = model_mems.detach().clone()
 
         ppo_rollout_buffer.compute_intrinsic_rewards()
-        ppo_rollout_buffer.compute_returns_and_advantage(new_values, dones)
+        ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, dones)
         callback.on_rollout_end()
         return True
 

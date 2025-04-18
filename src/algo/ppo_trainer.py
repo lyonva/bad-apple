@@ -61,6 +61,8 @@ class PPOTrainer(PPORollout):
         ext_rew_coef: float = 1.0,
         adv_norm: int = 1,
         adv_eps: float = 1e-8,
+        adv_ext_coeff: float = 1,
+        adv_int_coeff: float = 1,
         env_source: Optional[str] = None,
         env_render: Optional[int] = None,
         fixed_seed: Optional[int] = None,
@@ -148,6 +150,8 @@ class PPOTrainer(PPORollout):
         self.target_kl = target_kl
         self.adv_norm = adv_norm
         self.adv_eps = adv_eps
+        self.adv_ext_coeff = adv_ext_coeff
+        self.adv_int_coeff = adv_int_coeff
         self.pg_loss_avg = None
         self.ent_loss_avg = None
         self.ent_coef_init = ent_coef
@@ -190,19 +194,24 @@ class PPOTrainer(PPORollout):
                     if self.use_sde:
                         self.policy.reset_noise(self.batch_size)
 
-                    values, log_prob, entropy, memories = \
+                    ext_values, int_values, log_prob, entropy, memories = \
                         self.policy.evaluate_policy(
                             rollout_data.observations,
                             actions,
                             rollout_data.last_policy_mems,
                         )
-                    values = values.flatten()
+                    ext_values = ext_values.flatten()
+                    int_values = int_values.flatten()
 
                     # Normalize advantage
-                    advantages = rollout_data.advantages
+                    ext_advantages = rollout_data.ext_advantages
+                    int_advantages = rollout_data.int_advantages
                     # Normalize Advangages per mini-batch
                     if self.adv_norm == 1:
-                        advantages = (advantages - advantages.mean()) / (advantages.std() + self.adv_eps)
+                        ext_advantages = (ext_advantages - ext_advantages.mean()) / (ext_advantages.std() + self.adv_eps)
+                        int_advantages = (int_advantages - int_advantages.mean()) / (int_advantages.std() + self.adv_eps)
+                    # Combined advantage
+                    advantages = self.adv_ext_coeff * ext_advantages + self.adv_int_coeff * int_advantages
                     # ratio between old and new policy, should be one at the first iteration
                     ratio = th.exp(log_prob - rollout_data.old_log_prob)
                     # clipped surrogate loss
@@ -214,15 +223,21 @@ class PPOTrainer(PPORollout):
 
                     if self.clip_range_vf is None:
                         # No clipping
-                        values_pred = values
+                        ext_values_pred = ext_values
+                        int_values_pred = int_values
                     else:
                         # Clip the different between old and new value
                         # NOTE: this depends on the reward scaling
-                        values_pred = rollout_data.old_values + th.clamp(
-                            values - rollout_data.old_values, -clip_range_vf, clip_range_vf
+                        ext_values_pred = rollout_data.old_ext_values + th.clamp(
+                            ext_values - rollout_data.old_ext_values, -clip_range_vf, clip_range_vf
+                        )
+                        int_values_pred = rollout_data.old_int_values + th.clamp(
+                            int_values - rollout_data.old_int_values, -clip_range_vf, clip_range_vf
                         )
                     # Value loss using the TD(gae_lambda) target
-                    value_loss = F.mse_loss(rollout_data.returns, values_pred)
+                    ext_value_loss = F.mse_loss(rollout_data.ext_returns, ext_values_pred)
+                    int_value_loss = F.mse_loss(rollout_data.int_returns, int_values_pred)
+                    value_loss = 0.5*(ext_value_loss + int_value_loss)
 
                     # Entropy loss favor exploration
                     if entropy is None:
@@ -288,13 +303,15 @@ class PPOTrainer(PPORollout):
 
         # Update stats
         self._n_updates += self.n_epochs
-        explained_var = explained_variance(self.ppo_rollout_buffer.values.flatten(), self.ppo_rollout_buffer.returns.flatten())
+        explained_ext_var = explained_variance(self.ppo_rollout_buffer.ext_values.flatten(), self.ppo_rollout_buffer.ext_returns.flatten())
+        explained_int_var = explained_variance(self.ppo_rollout_buffer.int_values.flatten(), self.ppo_rollout_buffer.int_returns.flatten())
 
         # Logging
         log_data = {
             "time/total_timesteps": self.num_timesteps,
             "train/loss": ppo_loss.item(),
-            "train/explained_variance": explained_var,
+            "train/explained_ext_variance": explained_ext_var,
+            "train/explained_int_variance": explained_int_var,
             "train/n_updates": self._n_updates,
         }
         if hasattr(self.policy, "log_std"):
