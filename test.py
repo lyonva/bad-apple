@@ -26,6 +26,17 @@ class PythonLiteralOption(click.Option):
             return ast.literal_eval(value)
         except:
             raise click.BadParameter(value)
+        
+
+class TestingRecord:
+    def __init__(self):
+        self.obs = []
+        self.actions = []
+        self.ext_rewards = []
+        self.int_rewards = []
+        self.dones = []
+
+        self.positions = []
 
 def float_zeros(tensor_shape, config):
     return th.zeros(tensor_shape, device=config.device, dtype=th.float32)
