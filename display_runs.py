@@ -36,7 +36,7 @@ for map in maps:
         if len(seeds) == 0: empty_dirs.append(join(log_dir, map, log))
         
         # Check empty model dirs
-        if len( os.scandir(join(models_dir, map, log)) ) == 0: empty_dirs.append(join(models_dir, map, log))
+        if len( [ f.name for f in os.scandir(join(models_dir, map, log))] ) == 0: empty_dirs.append(join(models_dir, map, log))
 
         for seed in seeds:
             path_log = join(log_dir, map, log, seed)
