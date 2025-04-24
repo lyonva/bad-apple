@@ -51,6 +51,41 @@ class ModelType(Enum):
             else:
                 return ModelType.NoModel
         raise ValueError
+    
+    @staticmethod
+    def get_str_name(model_type):
+        if isinstance(model_type, str):
+            return model_type
+        if isinstance(model_type, ModelType):
+            if model_type == ModelType.ICM:
+                return "icm"
+            elif model_type == ModelType.RND:
+                return "rnd"
+            elif model_type == ModelType.NGU:
+                return "ngu"
+            elif model_type == ModelType.NovelD:
+                return "noveld"
+            elif model_type == ModelType.DEIR:
+                return "deir"
+            elif model_type == ModelType.PlainForward:
+                return "plainforward"
+            elif model_type == ModelType.PlainInverse:
+                return "plaininverse"
+            elif model_type == ModelType.PlainDiscriminator:
+                return "plaindiscriminator"
+            elif model_type == ModelType.StateCount:
+                return "statecount"
+            elif model_type == ModelType.MaxEntropy:
+                return "maxentropy"
+            elif model_type == ModelType.GRM:
+                return "grm"
+            elif model_type == ModelType.StateCountGRM:
+                return "statecountgrm"
+            elif model_type == ModelType.NoModel:
+                return "nomodel"
+            else:
+                return ModelType.NoModel
+        raise ValueError
 
 
 class NormType(Enum):

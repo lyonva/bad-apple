@@ -2,36 +2,163 @@ import os
 from os.path import join
 import pandas as pd
 import io
+import shutil
+from src.algo.ppo_trainer import PPOTrainer
+from src.utils.enum_types import ModelType
 
+def yes_or_no(question):
+    while True:
+        reply = str(input(question+' [Y/n]: ')).lower().strip()
+        if reply[:1] == 'y':
+            return True
+        if reply[:1] == 'n':
+            return False
+
+max_iter = 1221
 log_dir = "logs"
 models_dir = "models"
+model_snap_tags = [3,15,305,610,915,1221]
+archive_dir = "analysis"
 
 maps = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
 
+complete_runs = []
+incomplete_runs = []
+empty_dirs = []
+
 for map in maps:
-    print(30*"-")
-    print(map)
+    # print(30*"-")
+    # print(map)
     logs = [ f.name for f in os.scandir(join(log_dir, map)) if f.is_dir() ]
 
     for log in logs:
         seeds = [ f.name for f in os.scandir(join(log_dir, map, log)) if f.is_dir() ]
+        if len(seeds) == 0: empty_dirs.append(join(log_dir, map, log))
         
+        # Check empty model dirs
+        if len( [ f.name for f in os.scandir(join(models_dir, map, log))] ) == 0: empty_dirs.append(join(models_dir, map, log))
+
         for seed in seeds:
             path_log = join(log_dir, map, log, seed)
             models_log = join(models_dir, map, log, seed)
-            print(path_log)
+            # print(path_log)
+            code = 0
+
+            if len([ f.name for f in os.scandir(log_dir) ]) == 0: empty_dirs.append(log_dir)
+            if len([ f.name for f in os.scandir(models_dir) ]) == 0: empty_dirs.append(models_dir)
 
             if os.path.exists(join(path_log, "rollout.csv")) and os.path.isfile(join(path_log, "rollout.csv")):
                 df = pd.read_csv(join(path_log, "rollout.csv"), usecols=range(4))
                 iter = int( df["iterations"].max() )
                 
+                all_models = True
+                a_model_path = None
+                for mst in model_snap_tags:
+                    if os.path.exists(join(models_log, f"snapshot-{mst}.zip")):
+                        a_model_path = join(models_log, f"snapshot-{mst}.zip")
+                    else:
+                        all_models = False
+                        code = 2
                 
+                if a_model_path is not None:
+                # Try and get parameters
+                    try:
+                        model_main = PPOTrainer.load( a_model_path, env=None )
+                        im = ModelType.get_str_name(model_main.int_rew_source)
+                        id = model_main.run_id
+                        model_loads = True
+                    except:
+                        model_loads = False
+                        code = 3
+
+                    # print(im, id)
+                if iter != max_iter: code = 4
 
             else:
                 iter = 0
-                complete = False
+                code = 1
+            
+            if code == 0:
+                complete_runs.append( [ map, im, id, log, path_log, models_log ] )
+            else:
+                incomplete_runs.append( [log, code, path_log, models_log] )
 
-    print(30*"-")
+
+    # print(30*"-")
 
 
-print(subfolders)
+print(f"Complete runs: {len(complete_runs)}")
+for run in complete_runs:
+    print(f"{run[0]}\t{run[1]}-{run[2]:2.0f}\t{run[3]}")
+
+print(f"Incomplete runs: {len(incomplete_runs)}")
+for run in incomplete_runs:
+    code = run[1]
+    if code == 1: err = "No logs detected"
+    if code == 2: err = "Snapshots missing"
+    if code == 3: err = "Couldn't open model"
+    if code == 4: err = "Not enough iterations"
+    print(f"{run[0]}\t{err}")
+
+# print(subfolders)
+
+if len(incomplete_runs) > 0:
+    if yes_or_no("Delete all incomplete runs?"):
+        for run in incomplete_runs:
+            path_log = run[2]
+            models_log = run[3]
+            shutil.rmtree(path_log)
+            os.rmdir(path_log)
+            if os.path.exists(models_log):
+                shutil.rmtree(models_log)
+                os.rmdir(models_log)
+
+print(f"Empty directories: {len(empty_dirs)}")
+if len(empty_dirs) > 0:
+    if yes_or_no("Delete all empty dirs?"):
+        for dir in empty_dirs:
+            os.rmdir(dir)
+
+
+if len(complete_runs) > 0:
+    if yes_or_no(f"Migrate all complete runs to {archive_dir}/?"):
+        overwrite = None
+        this_session_targets = []
+        archive_log_dir = os.path.join(archive_dir, "logs")
+
+        if not os.path.exists(archive_dir): os.mkdir(archive_dir)
+        if not os.path.exists(archive_log_dir): os.mkdir(archive_log_dir)
+
+        for run in complete_runs:
+            map, im, id, log, path_log, models_log = run
+
+            if not os.path.exists( os.path.join(archive_log_dir, map) ): os.mkdir( os.path.join(archive_log_dir, map) )
+            target_dir = os.path.join( archive_log_dir, map, f"{im}-{id}" )
+
+            # Dir/Overwrite check
+            if os.path.exists( target_dir ):
+                if target_dir in this_session_targets:
+                    print(f"Batch already contains a log exported to {target_dir}, skipping exporting of {map}/{log}")
+                    continue
+                if overwrite == None:
+                    overwrite = yes_or_no("Overwrite existing?")
+                if overwrite:
+                    shutil.rmtree(target_dir)
+                    os.mkdir(target_dir)
+                else:
+                    print(f"Target directory already contains a log exported to {target_dir}, skipping exporting of {map}/{log}")
+                    continue
+            else:
+                os.mkdir(target_dir)
+            
+            for file in os.listdir(path_log): # Logs
+                shutil.move( os.path.join( path_log, file ), target_dir )
+            for file in os.listdir(models_log): # Snapshots
+                shutil.move( os.path.join( models_log, file ), target_dir )
+
+            # Safe delete dirs
+            if len([ f.name for f in os.scandir(path_log) ]) == 0: os.rmdir(path_log)
+            if len([ f.name for f in os.scandir(models_log) ]) == 0: os.rmdir(models_log)
+
+            this_session_targets.append(target_dir)
+
