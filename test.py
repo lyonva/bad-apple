@@ -32,9 +32,15 @@ def float_zeros(tensor_shape, config):
 
 def test(config):
 
+    data_main, data_base = {}, {}
+
     for snap in config.snaps:
 
+        data_main[snap], data_base[snap] = {}, {}
+
         for seed in config.seeds:
+
+            record_main, record_baseline = TestingRecord(), TestingRecord()
 
             env = make_vec_env(config.env_name,
                                wrapper_class=lambda x: ImgObsWrapper(x),
