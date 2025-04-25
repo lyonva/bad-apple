@@ -108,8 +108,9 @@ if len(incomplete_runs) > 0:
         for run in incomplete_runs:
             path_log = run[2]
             models_log = run[3]
-            shutil.rmtree(path_log)
-            os.rmdir(path_log)
+            if os.path.exists(path_log):
+                shutil.rmtree(path_log)
+                os.rmdir(path_log)
             if os.path.exists(models_log):
                 shutil.rmtree(models_log)
                 os.rmdir(models_log)
