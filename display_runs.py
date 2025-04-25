@@ -36,7 +36,7 @@ for map in maps:
         if len(seeds) == 0: empty_dirs.append(join(log_dir, map, log))
         
         # Check empty model dirs
-        if len( [ f.name for f in os.scandir(join(models_dir, map, log))] ) == 0: empty_dirs.append(join(models_dir, map, log))
+        if os.path.exists(join(models_dir, map, log)) and len( [ f.name for f in os.scandir(join(models_dir, map, log))] ) == 0: empty_dirs.append(join(models_dir, map, log))
 
         for seed in seeds:
             path_log = join(log_dir, map, log, seed)
@@ -44,8 +44,9 @@ for map in maps:
             # print(path_log)
             code = 0
 
-            if len([ f.name for f in os.scandir(log_dir) ]) == 0: empty_dirs.append(log_dir)
-            if len([ f.name for f in os.scandir(models_dir) ]) == 0: empty_dirs.append(models_dir)
+            if len([ f.name for f in os.scandir(path_log) ]) == 0: empty_dirs.append(path_log)
+            if os.path.exists(models_log):
+                if len([ f.name for f in os.scandir(models_log) ]) == 0: empty_dirs.append(models_log)
 
             if os.path.exists(join(path_log, "rollout.csv")) and os.path.isfile(join(path_log, "rollout.csv")):
                 df = pd.read_csv(join(path_log, "rollout.csv"), usecols=range(4))
