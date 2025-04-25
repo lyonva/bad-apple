@@ -110,10 +110,12 @@ if len(incomplete_runs) > 0:
             models_log = run[3]
             if os.path.exists(path_log):
                 shutil.rmtree(path_log)
-                os.rmdir(path_log)
+                if os.path.exists(path_log):
+                    os.rmdir(path_log)
             if os.path.exists(models_log):
                 shutil.rmtree(models_log)
-                os.rmdir(models_log)
+                if os.path.exists(models_log):
+                    os.rmdir(models_log)
 
 print(f"Empty directories: {len(empty_dirs)}")
 if len(empty_dirs) > 0:
