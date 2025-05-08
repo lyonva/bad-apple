@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 
-df = pd.read_csv("alldata.csv")
-im = ["NoModel", "StateCount", "MaxEntropy", "RND", "GRM"]
+df = pd.read_csv("logs/alldata.csv")
+im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
+im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
 df = df.dropna(axis=0, subset=["iterations"])
 
 atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:", "rollout/int_rew_mean", "rollout/ll_rew_count"]

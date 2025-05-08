@@ -20,11 +20,20 @@ def make_heatmaps(file, baseline):
     df = pd.read_csv(file)
     #print(df)
 
+    im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
+    im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
+    df["im"] = df["im"].replace(im, im_name)
+    im = im_name
+
+    sn1 = [3, 15, 305, 610, 915, 1221]
+    sn_name = ["0.25%", "1.25%", "25%", "50%", "75%", "100%"]
+    df["snapshot"] = df["snapshot"].replace(sn1, sn_name)
+
     map = file.split("\\")[-1].split(".")[0].split("-", 1)[1]
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
-    ims = df["im"].unique()
-    snapshots = df["snapshot"].unique()
+    ims = im_name
+    snapshots = sn_name
 
     min_x, max_x = df["x"].min(), df["x"].max()
     min_y, max_y = df["y"].min(), df["y"].max()
@@ -43,6 +52,7 @@ def make_heatmaps(file, baseline):
     big_map = pd.DataFrame(big_map, columns=["snapshot", "im", "data"])
     g = sns.FacetGrid(big_map, row="im", col="snapshot", margin_titles=True)
     superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=0, vmax=max_v)
+    g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
     superheat.figure.savefig(f"heat-{map}.png")
     # plt.show()
 
@@ -59,6 +69,7 @@ def make_heatmaps(file, baseline):
     diff_map = pd.DataFrame(diff_map, columns=["snapshot", "im", "data"])
     g = sns.FacetGrid(diff_map, row="im", col="snapshot", margin_titles=True)
     superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v, cmap="icefire")
+    g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
     superheat.figure.savefig(f"diff-{map}.png")
     # plt.show()
 
@@ -66,7 +77,7 @@ def make_heatmaps(file, baseline):
 @click.command()
 # Testing params
 @click.option('--file', type=str, help='CSV file with the positions of agents')
-@click.option('--baseline', default="nomodel", type=str, help='Name of the baseline method')
+@click.option('--baseline', default="No IM", type=str, help='Name of the baseline method')
 
 def main(
     file, baseline,
