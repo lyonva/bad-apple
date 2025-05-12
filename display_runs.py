@@ -14,10 +14,10 @@ def yes_or_no(question):
         if reply[:1] == 'n':
             return False
 
-max_iter = 1221
+max_iter = 489
 log_dir = "logs"
 models_dir = "models"
-model_snap_tags = [3,15,305,610,915,1221]
+model_snap_tags = [25,49,123,245,489]
 archive_dir = "analysis"
 
 maps = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
