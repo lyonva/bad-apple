@@ -12,6 +12,14 @@ map_dims = {
     "FourRooms" : (19, 19, 0.01, 0.01),
 }
 
+def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
+    data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
+    # signs = np.logical_not(np.signbit(data)).astype(np.float32)*2 - 1
+    # data = np.abs(data)
+    # data = signs*np.log10(data - np.min(data) + 0.0001)
+    data = np.log10(data - np.min(data) + 0.0001)
+    sns.heatmap(data, square=True, cbar=False, vmin=np.log10(vmin+0.0001), vmax=np.log10(vmax), **kwargs)
+
 def draw_heatmap(data, **kwargs):
     data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
     sns.heatmap(data, square=True, cbar=False, **kwargs)
@@ -51,7 +59,7 @@ def make_heatmaps(file, baseline):
     # Heatmap
     big_map = pd.DataFrame(big_map, columns=["snapshot", "im", "data"])
     g = sns.FacetGrid(big_map, row="im", col="snapshot", margin_titles=True)
-    superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=0, vmax=max_v)
+    superheat=g.map_dataframe(draw_log_heatmap, annot=False, vmin=0, vmax=max_v)
     g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
     superheat.figure.savefig(f"heat-{map}.png")
     # plt.show()
@@ -68,7 +76,7 @@ def make_heatmaps(file, baseline):
     
     diff_map = pd.DataFrame(diff_map, columns=["snapshot", "im", "data"])
     g = sns.FacetGrid(diff_map, row="im", col="snapshot", margin_titles=True)
-    superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v, cmap="icefire")
+    superheat=g.map_dataframe(draw_heatmap, annot=False,  cmap="vlag", vmin=-max_diff_v, vmax=max_diff_v)
     g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
     superheat.figure.savefig(f"diff-{map}.png")
     # plt.show()
