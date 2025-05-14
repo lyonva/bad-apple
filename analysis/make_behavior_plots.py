@@ -9,7 +9,8 @@ import seaborn as sns
 
 map_dims = {
     "Empty-16x16" : (16, 16, 0.05, 0.05),
-    "DoorKey-16x16" : (16, 16, 0.02, 0.02),
+    # "DoorKey-16x16" : (16, 16, 0.02, 0.02),
+    "DoorKey-8x8" : (8, 8, 0.05, 0.05),
     "RedBlueDoors-8x8" : (16, 8, 0.08, 0.08),
     "FourRooms" : (19, 19, 0.01, 0.01),
 }

@@ -19,6 +19,8 @@ def load_all_training_data(path):
                     if line[-1] == "\n":
                         line = line[:-1]
                     data.append(line)
+            # print(data)
+            # print([len(x) for x in data])
             subdf = pd.DataFrame(data[1:], columns=data[0])
             subdf["map"] = map
             subdf["im"] = im
@@ -63,7 +65,7 @@ def fix_the_info_len_bug_training_data(path):
 
 if __name__ == "__main__":
     dir = "logs"
+    fix_the_info_len_bug_training_data(dir)
     df = load_all_training_data(dir)
     df.to_csv(os.path.join(dir, "alldata.csv")) 
-    # fix_the_info_len_bug_training_data(dir)
     print(df)

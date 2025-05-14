@@ -6,24 +6,27 @@ import seaborn as sns
 sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
 
 df = pd.read_csv("logs/alldata.csv")
-im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
-im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
+# im = ["nomodel", "statecount", "grm"]
+# im_name = ["No IM", "State Count", "GRM"]
+im = ["nomodel", "statecount", "maxentropy", "icm", "rnd", "grm"]
+im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
 df["im"] = df["im"].replace(im, im_name)
 im = im_name
 df = df.dropna(axis=0, subset=["iterations"])
 
 atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:"]
-atts_name = ["Episode Reward", "State Coverage", "Position Coverage", "Entropy"]
+atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
 df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
 
-maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
+# maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
+maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms"]
 
 df = df[["im", "iterations", "map"] + atts_name].set_index(["im", "iterations", "map"]).stack(future_stack=True).reset_index()
 df.columns = ["im", "iterations", "map", "metric", "value"]
 
 # Make Position/State coverage relative to map
 for map in maps:
-    for metric in ["State Coverage", "Position Coverage"]:
+    for metric in ["Position Coverage", "Observation Coverage"]:
         df.loc[(df["map"] == map) & (df["metric"] == metric), "value"] /= df[(df["map"] == map) & (df["metric"] == metric)]["value"].max()
 
 # for map in maps_name:
@@ -41,7 +44,7 @@ g.set_titles(col_template="{col_name}", row_template="{row_name}")
 g.set_axis_labels("", "")
 for (row_val, col_val), ax in g.axes_dict.items():
     ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
-    ax.set_xticks([0, 400, 800, 1200])
+    ax.set_xticks([0, 100, 200, 300, 400, 500])
     if col_val == "Entropy":
         ax.set_ylim((0,2))
         ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])

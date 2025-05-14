@@ -125,10 +125,10 @@ if len(empty_dirs) > 0:
 
 
 if len(complete_runs) > 0:
-    if yes_or_no(f"Migrate all complete runs to {archive_dir}/?"):
+    if yes_or_no(f"Migrate all complete runs to {archive_dir}/{log_dir}?"):
         overwrite = None
         this_session_targets = []
-        archive_log_dir = os.path.join(archive_dir, "logs")
+        archive_log_dir = os.path.join(archive_dir, log_dir)
 
         if not os.path.exists(archive_dir): os.mkdir(archive_dir)
         if not os.path.exists(archive_log_dir): os.mkdir(archive_log_dir)
