@@ -837,6 +837,7 @@ class PPORollout(BaseAlgorithm):
                   f'iters: {self.iteration}  '
                   f'frames: {self.num_timesteps}  '
                   f'rew: {rew_mean:.6f}  '
+                  f'int rew: {self.ppo_rollout_buffer.int_rew_mean:.6f}  '
                   f'rollout: {collect_end_time - collect_start_time:.3f} sec  '
                   f'train: {train_end_time - train_start_time:.3f} sec')
 
