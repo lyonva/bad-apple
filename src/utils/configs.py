@@ -13,7 +13,7 @@ from datetime import datetime
 from src.algo.common_models.cnns import BatchNormCnnFeaturesExtractor, LayerNormCnnFeaturesExtractor, \
     CnnFeaturesExtractor
 from src.env.subproc_vec_env import CustomSubprocVecEnv
-from src.utils.enum_types import EnvSrc, NormType, ModelType
+from src.utils.enum_types import EnvSrc, NormType, ModelType, ShapeType
 from wandb.integration.sb3 import WandbCallback
 
 from src.utils.loggers import LocalLogger
@@ -177,6 +177,8 @@ class TrainingConfig():
             print('\nWARNING: Running DEIR without RNNs\n')
         if self.int_rew_source in [ModelType.DEIR, ModelType.PlainDiscriminator]:
             assert self.n_steps * self.num_processes >= self.batch_size
+        
+        self.int_shape_source = ShapeType.get_enum_shape_type(self.int_shape_source)
 
     def get_cnn_kwargs(self, cnn_activation_fn=nn.ReLU):
         features_extractor_common_kwargs = dict(

@@ -7,7 +7,7 @@ from torch import Tensor
 
 from src.utils.loggers import StatisticsLogger, LocalLogger
 from src.algo.ppo_rollout import PPORollout
-from src.utils.enum_types import ModelType
+from src.utils.enum_types import ModelType, ShapeType
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -53,6 +53,8 @@ class PPOTrainer(PPORollout):
         int_rew_clip: float = 0.0,
         enable_plotting: int = 0,
         can_see_walls: int = 1,
+        int_shape_source : ShapeType = ShapeType.NoRS,
+        grm_delay : int = 1,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -99,6 +101,8 @@ class PPOTrainer(PPORollout):
             max_grad_norm=max_grad_norm,
             use_sde=use_sde,
             sde_sample_freq=sde_sample_freq,
+            int_shape_source=int_shape_source,
+            grm_delay=grm_delay,
             policy_kwargs=policy_kwargs,
             verbose=verbose,
             device=device,
