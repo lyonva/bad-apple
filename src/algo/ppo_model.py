@@ -22,6 +22,17 @@ from stable_baselines3.common.preprocessing import preprocess_obs
 from stable_baselines3.common.torch_layers import NatureCNN, BaseFeaturesExtractor
 from stable_baselines3.common.type_aliases import Schedule
 
+from stable_baselines3.common.distributions import (
+    BernoulliDistribution,
+    CategoricalDistribution,
+    DiagGaussianDistribution,
+    Distribution,
+    MultiCategoricalDistribution,
+    StateDependentNoiseDistribution,
+    make_proba_distribution,
+)
+from functools import partial
+
 from torch.nn import GRUCell
 
 from typing import Dict, Any, List, Union
@@ -43,7 +54,7 @@ class PPOModel(ActorCriticCnnPolicy):
         log_std_init: float = 0.0,
         full_std: bool = True,
         sde_net_arch: Optional[List[int]] = None,
-        gamma = 0.99,
+        gamma: float = 0.99,
         use_expln: bool = False,
         squash_output: bool = False,
         policy_features_extractor_class: Type[BaseFeaturesExtractor] = NatureCNN,
@@ -273,7 +284,50 @@ class PPOModel(ActorCriticCnnPolicy):
         )
 
     def _build(self, lr_schedule: Schedule) -> None:
-        super()._build(lr_schedule)
+        self._build_mlp_extractor()
+
+        latent_dim_pi = self.mlp_extractor.latent_dim_pi
+
+        if isinstance(self.action_dist, DiagGaussianDistribution):
+            self.action_net, self.log_std = self.action_dist.proba_distribution_net(
+                latent_dim=latent_dim_pi, log_std_init=self.log_std_init
+            )
+        elif isinstance(self.action_dist, StateDependentNoiseDistribution):
+            self.action_net, self.log_std = self.action_dist.proba_distribution_net(
+                latent_dim=latent_dim_pi, latent_sde_dim=latent_dim_pi, log_std_init=self.log_std_init
+            )
+        elif isinstance(self.action_dist, (CategoricalDistribution, MultiCategoricalDistribution, BernoulliDistribution)):
+            self.action_net = self.action_dist.proba_distribution_net(latent_dim=latent_dim_pi)
+        else:
+            raise NotImplementedError(f"Unsupported distribution '{self.action_dist}'.")
+
+        self.value_net = nn.Linear(self.mlp_extractor.latent_dim_vf, 2)
+        # Init weights: use orthogonal initialization
+        # with small initial weight for the output
+        if self.ortho_init:
+            # TODO: check for features_extractor
+            # Values from stable-baselines.
+            # features_extractor/mlp values are
+            # originally from openai/baselines (default gains/init_scales).
+            module_gains = {
+                self.features_extractor: np.sqrt(2),
+                self.mlp_extractor: np.sqrt(2),
+                self.action_net: 0.01,
+                self.value_net: 1,
+            }
+            if not self.share_features_extractor:
+                # Note(antonin): this is to keep SB3 results
+                # consistent, see GH#1148
+                del module_gains[self.features_extractor]
+                module_gains[self.pi_features_extractor] = np.sqrt(2)
+                module_gains[self.vf_features_extractor] = np.sqrt(2)
+
+            for module, gain in module_gains.items():
+                module.apply(partial(self.init_weights, gain=gain))
+
+        # Setup optimizer with initial learning rate
+        self.optimizer = self.optimizer_class(self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)  # type: ignore[call-arg]
+
         # Build RNNs
         self.policy_rnns = []
         for l in range(self.gru_layers):
@@ -329,11 +383,12 @@ class PPOModel(ActorCriticCnnPolicy):
     def forward(self, obs: Tensor, mem: Tensor, deterministic: bool = False) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
-        values = self.value_net(latent_vf)
         distribution = self._get_action_dist_from_latent(latent_pi)
         actions = distribution.get_actions(deterministic=deterministic)
-        log_prob = distribution.log_prob(actions)
-        return actions, values, log_prob, memories
+        log_prob = distribution.log_prob(actions) 
+        values = self.value_net(latent_vf)
+        ext_values, int_values = values[:,0], values[:,1]
+        return actions, ext_values, int_values, log_prob, memories
 
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -341,4 +396,5 @@ class PPOModel(ActorCriticCnnPolicy):
         distribution = self._get_action_dist_from_latent(latent_pi)
         log_prob = distribution.log_prob(act)
         values = self.value_net(latent_vf)
-        return values, log_prob, distribution.entropy(), memories
+        ext_values, int_values = values[:,0], values[:,1]
+        return ext_values, int_values, log_prob, distribution.entropy(), memories

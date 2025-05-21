@@ -108,6 +108,8 @@ def train(config):
         adv_momentum=config.adv_momentum,
         adv_norm=config.adv_norm,
         adv_eps=config.adv_eps,
+        adv_ext_coeff=config.adv_ext_coeff,
+        adv_int_coeff=config.adv_int_coeff,
         clip_range=config.clip_range,
         clip_range_vf=config.clip_range_vf,
         policy_kwargs=policy_kwargs,
@@ -174,6 +176,8 @@ def train(config):
               help='Normalized advantages by: [0] No normalization [1] Standardization per mini-batch [2] Standardization per rollout buffer [3] Standardization w.o. subtracting the mean per rollout buffer')
 @click.option('--adv_eps', default=1e-5, type=float, help='Epsilon for advantage normalization')
 @click.option('--adv_momentum', default=0.9, type=float, help='EMA smoothing factor for advantage normalization')
+@click.option('--adv_ext_coeff', default=1, type=float, help='Advantage coefficient for extrinsic (real) rewards')
+@click.option('--adv_int_coeff', default=1, type=float, help='Advantage coefficient for intrinsic rewards')
 # Reward params
 @click.option('--ext_rew_coef', default=1.0, type=float, help='Coefficient of extrinsic rewards')
 @click.option('--int_rew_coef', default=1e-2, type=float, help='Coefficient of intrinsic rewards (IRs)')
@@ -244,7 +248,7 @@ def main(
     num_processes, batch_size, n_steps, env_source, game_name, project_name, map_size, can_see_walls, fully_obs,
     image_noise_scale, log_explored_states, fixed_seed, n_epochs, model_n_epochs,
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
-    adv_momentum, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
+    adv_momentum, adv_ext_coeff, adv_int_coeff, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
     rnd_err_norm, rnd_err_momentum, grm_delay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
