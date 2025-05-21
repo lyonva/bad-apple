@@ -15,8 +15,6 @@ class ModelType(Enum):
     PlainDiscriminator = 8
     StateCount = 9
     MaxEntropy = 10
-    GRM = 11
-    StateCountGRM = 12
 
     @staticmethod
     def get_enum_model_type(model_type):
@@ -44,10 +42,6 @@ class ModelType(Enum):
                 return ModelType.StateCount
             elif model_type == "maxentropy":
                 return ModelType.MaxEntropy
-            elif model_type == "grm":
-                return ModelType.GRM
-            elif model_type == "statecountgrm":
-                return ModelType.StateCountGRM
             else:
                 return ModelType.NoModel
         raise ValueError
@@ -77,15 +71,44 @@ class ModelType(Enum):
                 return "statecount"
             elif model_type == ModelType.MaxEntropy:
                 return "maxentropy"
-            elif model_type == ModelType.GRM:
-                return "grm"
-            elif model_type == ModelType.StateCountGRM:
-                return "statecountgrm"
             elif model_type == ModelType.NoModel:
                 return "nomodel"
             else:
                 return ModelType.NoModel
         raise ValueError
+
+class ShapeType(Enum):
+    NoRS = 0
+    GRM = 1
+    ADOPES = 2
+
+    @staticmethod
+    def get_enum_shape_type(shape_type):
+        if isinstance(shape_type, ShapeType):
+            return shape_type
+        if isinstance(shape_type, str):
+            shape_type = shape_type.strip().lower()
+            if shape_type == "grm":
+                return ShapeType.GRM
+            elif shape_type == "adopes" or shape_type == "adops":
+                return ShapeType.ADOPES
+            else:
+                return ShapeType.NoRS
+        raise ValueError
+    
+    @staticmethod
+    def get_str_name(shape_type):
+        if isinstance(shape_type, str):
+            return shape_type
+        if isinstance(shape_type, ShapeType):
+            if shape_type == ShapeType.GRM:
+                return "grm"
+            elif shape_type == ShapeType.ADOPES:
+                return "adopes"
+            elif shape_type == ShapeType.NoRS:
+                return "nors"
+        raise ValueError
+            
 
 
 class NormType(Enum):
