@@ -141,15 +141,15 @@ def train(config):
 @click.option('--group_name', type=str, help='Group name (wandb option)')
 @click.option('--log_dir', default='./logs', type=str, help='Directory for saving training logs')
 @click.option('--model_dir', default='./models', type=str, help='Directory for saving model snapshots')
-@click.option('--total_steps', default=int(1e7), type=int, help='Total number of frames to run for training')
+@click.option('--total_steps', default=int(2048000), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
 @click.option('--model_features_dim', default=128, type=int,
               help='Number of neurons of a learned embedding (dynamics model)')
-@click.option('--learning_rate', default=3e-4, type=float, help='Learning rate of PPO')
+@click.option('--learning_rate', default=1e-4, type=float, help='Learning rate of PPO')
 @click.option('--model_learning_rate', default=3e-4, type=float, help='Learning rate of the dynamics model')
 @click.option('--num_processes', default=16, type=int, help='Number of training processes (workers)')
-@click.option('--batch_size', default=512, type=int, help='Batch size')
-@click.option('--n_steps', default=512, type=int, help='Number of steps to run for each process per update')
+@click.option('--batch_size', default=256, type=int, help='Batch size')
+@click.option('--n_steps', default=128, type=int, help='Number of steps to run for each process per update')
 # Env params
 @click.option('--env_source', default='minigrid', type=str, help='minigrid or minigrid (no procgen support)')
 @click.option('--game_name', default="DoorKey-8x8", type=str, help='e.g. DoorKey-8x8, FourRooms, RedBlueDoors-8x8')
@@ -167,7 +167,7 @@ def train(config):
 @click.option('--gae_lambda', default=0.95, type=float, help='GAE lambda')
 @click.option('--pg_coef', default=1.0, type=float, help='Coefficient of policy gradients')
 @click.option('--vf_coef', default=0.5, type=float, help='Coefficient of value function loss')
-@click.option('--ent_coef', default=0.01, type=float, help='Coefficient of policy entropy')
+@click.option('--ent_coef', default=5e-4, type=float, help='Coefficient of policy entropy')
 @click.option('--max_grad_norm', default=0.5, type=float, help='Maximum norm of gradient')
 @click.option('--clip_range', default=0.2, type=float, help='PPO clip range of the policy network')
 @click.option('--clip_range_vf', default=-1, type=float,

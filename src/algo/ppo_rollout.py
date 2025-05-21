@@ -435,6 +435,7 @@ class PPORollout(BaseAlgorithm):
             else:
                 log_data.update({
                     "rollout/ep_info_rew_mean": 0.0,
+                    "rollout/ep_info_len_mean": 0.0,
                 })
 
             if self.int_rew_coef > 0:
@@ -839,6 +840,7 @@ class PPORollout(BaseAlgorithm):
                   f'iters: {self.iteration}  '
                   f'frames: {self.num_timesteps}  '
                   f'rew: {rew_mean:.6f}  '
+                  f'int rew: {self.ppo_rollout_buffer.int_rew_mean:.6f}  '
                   f'rollout: {collect_end_time - collect_start_time:.3f} sec  '
                   f'train: {train_end_time - train_start_time:.3f} sec')
 

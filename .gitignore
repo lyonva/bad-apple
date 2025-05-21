@@ -5,7 +5,13 @@ wandb/
 models/
 
 # Data
-analysis/
+analysis/artifacts/
+analysis/models/
+analysis/*/*
+analysis/*.csv
+analysis/*.png
+analysis/*/*.csv
+analysis/*/*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
