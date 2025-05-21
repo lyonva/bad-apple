@@ -91,7 +91,7 @@ for map in maps:
 
 print(f"Complete runs: {len(complete_runs)}")
 for run in complete_runs:
-    print(f"{run[0]}\t{run[1]}+{run[2]}-{run[3]:2.0f}\t{run[4]}")
+    print(f"{run[0]:30s}\t{run[1]}+{run[2]}-{run[3]:2d}\t{run[4]}")
 
 print(f"Incomplete runs: {len(incomplete_runs)}")
 for run in incomplete_runs:
