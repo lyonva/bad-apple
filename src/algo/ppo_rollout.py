@@ -11,7 +11,9 @@ from matplotlib import pyplot as plt
 from src.algo.buffers.ppo_buffer import PPORolloutBuffer
 from src.utils.loggers import StatisticsLogger, LocalLogger
 from src.utils.common_func import set_random_seed
-from src.utils.enum_types import ModelType, EnvSrc
+from src.utils.enum_types import ModelType, EnvSrc, ShapeType
+
+from src.algo.reward_shaping.grm import GRM
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import BaseCallback
@@ -54,6 +56,8 @@ class PPORollout(BaseAlgorithm):
         max_grad_norm: float,
         use_sde: bool,
         sde_sample_freq: int,
+        int_shape_source : ShapeType,
+        grm_delay : int,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -104,6 +108,8 @@ class PPORollout(BaseAlgorithm):
         self.ext_rew_coef = ext_rew_coef
         self.adv_norm = adv_norm
         self.adv_eps = adv_eps
+        self.int_shape_source = int_shape_source
+        self.grm_delay = grm_delay
         self.env_source = env_source
         self.env_render = env_render
         self.fixed_seed = fixed_seed
@@ -116,6 +122,18 @@ class PPORollout(BaseAlgorithm):
 
         if _init_setup_model:
             self._setup_model()
+        
+
+        # Reward shaping model
+        if self.int_shape_source == ShapeType.NoRS:
+            self.int_shape_model = None
+        elif self.int_shape_source == ShapeType.GRM:
+            self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
+        elif self.int_shape_source == ShapeType.ADOPES:
+            self.int_shape_model = None
+            raise NotImplementedError
+        else:
+            raise TypeError
 
     def _setup_model(self) -> None:
         self._setup_lr_schedule()
@@ -543,146 +561,136 @@ class PPORollout(BaseAlgorithm):
         if self.int_rew_source == ModelType.NoModel:
             intrinsic_rewards = np.zeros([self.n_envs], dtype=float)
             model_mems = None
-            return intrinsic_rewards, model_mems
 
-        # Prepare input tensors for IR generation
-        with th.no_grad():
-            curr_obs_tensor = obs_as_tensor(self._last_obs, self.device)
-            next_obs_tensor = obs_as_tensor(new_obs, self.device)
-            curr_act_tensor = th.as_tensor(actions, dtype=th.int64, device=self.device)
-            done_tensor = th.as_tensor(dones, dtype=th.int64, device=self.device)
+        else:
+            # Prepare input tensors for IR generation
+            with th.no_grad():
+                curr_obs_tensor = obs_as_tensor(self._last_obs, self.device)
+                next_obs_tensor = obs_as_tensor(new_obs, self.device)
+                curr_act_tensor = th.as_tensor(actions, dtype=th.int64, device=self.device)
+                done_tensor = th.as_tensor(dones, dtype=th.int64, device=self.device)
 
-            if self.policy.use_model_rnn:
-                last_model_mem_tensor = self._last_model_mems
-                if self.int_rew_source in [ModelType.RND, ModelType.NGU, ModelType.NovelD]:
-                    if self.policy.rnd_use_policy_emb:
-                        last_model_mem_tensor = self._last_policy_mems
-            else:
-                last_model_mem_tensor = None
+                if self.policy.use_model_rnn:
+                    last_model_mem_tensor = self._last_model_mems
+                    if self.int_rew_source in [ModelType.RND, ModelType.NGU, ModelType.NovelD]:
+                        if self.policy.rnd_use_policy_emb:
+                            last_model_mem_tensor = self._last_policy_mems
+                else:
+                    last_model_mem_tensor = None
 
-            if self.policy.use_status_predictor:
-                key_status_tensor = th.as_tensor(self.curr_key_status, dtype=th.int64, device=self.device)
-                door_status_tensor = th.as_tensor(self.curr_door_status, dtype=th.int64, device=self.device)
-                target_dists_tensor = th.as_tensor(self.curr_target_dists, dtype=th.float32, device=self.device)
-            else:
-                key_status_tensor = None
-                door_status_tensor = None
-                target_dists_tensor = None
+                if self.policy.use_status_predictor:
+                    key_status_tensor = th.as_tensor(self.curr_key_status, dtype=th.int64, device=self.device)
+                    door_status_tensor = th.as_tensor(self.curr_door_status, dtype=th.int64, device=self.device)
+                    target_dists_tensor = th.as_tensor(self.curr_target_dists, dtype=th.float32, device=self.device)
+                else:
+                    key_status_tensor = None
+                    door_status_tensor = None
+                    target_dists_tensor = None
 
-        # DEIR / Plain discriminator model
-        if self.int_rew_source in [ModelType.DEIR, ModelType.PlainDiscriminator]:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                obs_history=self.episodic_obs_emb_history,
-                trj_history=self.episodic_trj_emb_history,
-                plain_dsc=bool(self.int_rew_source == ModelType.PlainDiscriminator),
-            )
-            # Insert obs into the Discriminator's obs queue
-            # Algorithm A2 in the Technical Appendix
+            # DEIR / Plain discriminator model
             if self.int_rew_source in [ModelType.DEIR, ModelType.PlainDiscriminator]:
-                self.policy.int_rew_model.update_obs_queue(
-                    iteration=self.iteration,
-                    intrinsic_rewards=intrinsic_rewards,
-                    ir_mean=self.ppo_rollout_buffer.int_rew_stats.mean,
-                    new_obs=new_obs,
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    obs_history=self.episodic_obs_emb_history,
+                    trj_history=self.episodic_trj_emb_history,
+                    plain_dsc=bool(self.int_rew_source == ModelType.PlainDiscriminator),
+                )
+                # Insert obs into the Discriminator's obs queue
+                # Algorithm A2 in the Technical Appendix
+                if self.int_rew_source in [ModelType.DEIR, ModelType.PlainDiscriminator]:
+                    self.policy.int_rew_model.update_obs_queue(
+                        iteration=self.iteration,
+                        intrinsic_rewards=intrinsic_rewards,
+                        ir_mean=self.ppo_rollout_buffer.int_rew_stats.mean,
+                        new_obs=new_obs,
+                        stats_logger=self.rollout_stats
+                    )
+            # Plain forward / inverse model
+            elif self.int_rew_source in [ModelType.PlainForward, ModelType.PlainInverse]:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_act=curr_act_tensor,
+                    curr_dones=done_tensor,
+                    obs_history=self.episodic_obs_emb_history,
+                    key_status=key_status_tensor,
+                    door_status=door_status_tensor,
+                    target_dists=target_dists_tensor,
                     stats_logger=self.rollout_stats
                 )
-        # Plain forward / inverse model
-        elif self.int_rew_source in [ModelType.PlainForward, ModelType.PlainInverse]:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                obs_history=self.episodic_obs_emb_history,
-                key_status=key_status_tensor,
-                door_status=door_status_tensor,
-                target_dists=target_dists_tensor,
-                stats_logger=self.rollout_stats
-            )
-        # ICM
-        elif self.int_rew_source == ModelType.ICM:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                stats_logger=self.rollout_stats
-            )
-        # RND
-        elif self.int_rew_source == ModelType.RND:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_dones=done_tensor,
-                stats_logger=self.rollout_stats
-            )
-        # NGU
-        elif self.int_rew_source == ModelType.NGU:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                obs_history=self.episodic_obs_emb_history,
-                stats_logger=self.rollout_stats
-            )
-        # NovelD
-        elif self.int_rew_source == ModelType.NovelD:
-            return self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_dones=done_tensor,
-                stats_logger=self.rollout_stats
-            )
-        elif self.int_rew_source == ModelType.StateCount:
-            return self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                obs_history=self.episodic_obs_emb_history,
-                stats_logger=self.rollout_stats
-            )
-        elif self.int_rew_source == ModelType.MaxEntropy:
-            return self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                entropy=self.entropy,
-                obs_history=self.episodic_obs_emb_history,
-                stats_logger=self.rollout_stats
-            )
-        # GRM
-        elif self.int_rew_source == ModelType.GRM:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_dones=done_tensor,
-                stats_logger=self.rollout_stats
-            )
-        # SC GRM
-        elif self.int_rew_source == ModelType.StateCountGRM:
-            intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
-                curr_obs=curr_obs_tensor,
-                next_obs=next_obs_tensor,
-                last_mems=last_model_mem_tensor,
-                curr_act=curr_act_tensor,
-                curr_dones=done_tensor,
-                obs_history=self.episodic_obs_emb_history,
-                stats_logger=self.rollout_stats
-            )
-        else:
-            raise NotImplementedError
+            # ICM
+            elif self.int_rew_source == ModelType.ICM:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_act=curr_act_tensor,
+                    curr_dones=done_tensor,
+                    stats_logger=self.rollout_stats
+                )
+            # RND
+            elif self.int_rew_source == ModelType.RND:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_dones=done_tensor,
+                    stats_logger=self.rollout_stats
+                )
+            # NGU
+            elif self.int_rew_source == ModelType.NGU:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_act=curr_act_tensor,
+                    curr_dones=done_tensor,
+                    obs_history=self.episodic_obs_emb_history,
+                    stats_logger=self.rollout_stats
+                )
+            # NovelD
+            elif self.int_rew_source == ModelType.NovelD:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_dones=done_tensor,
+                    stats_logger=self.rollout_stats
+                )
+            elif self.int_rew_source == ModelType.StateCount:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_act=curr_act_tensor,
+                    curr_dones=done_tensor,
+                    obs_history=self.episodic_obs_emb_history,
+                    stats_logger=self.rollout_stats
+                )
+            elif self.int_rew_source == ModelType.MaxEntropy:
+                intrinsic_rewards, model_mems = self.policy.int_rew_model.get_intrinsic_rewards(
+                    curr_obs=curr_obs_tensor,
+                    next_obs=next_obs_tensor,
+                    last_mems=last_model_mem_tensor,
+                    curr_act=curr_act_tensor,
+                    curr_dones=done_tensor,
+                    entropy=self.entropy,
+                    obs_history=self.episodic_obs_emb_history,
+                    stats_logger=self.rollout_stats
+                )
+            else:
+                raise NotImplementedError
+
+        # Reward Shaping
+        if self.int_shape_source == ShapeType.NoRS:
+            pass
+        elif self.int_shape_source == ShapeType.GRM:
+            intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, done_tensor)
+        elif self.int_shape_source == ShapeType.ADOPES:
+            pass
+
         return intrinsic_rewards, model_mems
 
 
