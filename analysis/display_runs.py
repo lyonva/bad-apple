@@ -28,7 +28,7 @@ def display_runs(dir):
     for map in maps:
         print(f"{map:35}" + "|".join( [ f"{s:2d}" for s in range(min_seed, max_seed+1) ] ))
         for tech in all_techs:
-            print(f"{tech:35}" + "|".join( [ "✔️" if s in all_runs[map][tech] else "❌" for s in range(min_seed,max_seed+1) ] ))
+            print(f"{tech:35}" + "|".join( [ "✔️" if ((tech in all_runs[map]) and (s in all_runs[map][tech])) else "❌" for s in range(min_seed,max_seed+1) ] ))
         print("")
 
 
