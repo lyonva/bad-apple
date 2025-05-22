@@ -65,7 +65,7 @@ def fix_the_info_len_bug_training_data(path):
 
 if __name__ == "__main__":
     dir = "logs"
-    fix_the_info_len_bug_training_data(dir)
+    # fix_the_info_len_bug_training_data(dir)
     df = load_all_training_data(dir)
     df.to_csv(os.path.join(dir, "alldata.csv")) 
     print(df)

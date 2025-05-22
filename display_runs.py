@@ -4,7 +4,7 @@ import pandas as pd
 import io
 import shutil
 from src.algo.ppo_trainer import PPOTrainer
-from src.utils.enum_types import ModelType
+from src.utils.enum_types import ModelType, ShapeType
 
 def yes_or_no(question):
     while True:
@@ -66,6 +66,7 @@ for map in maps:
                     try:
                         model_main = PPOTrainer.load( a_model_path, env=None )
                         im = ModelType.get_str_name(model_main.int_rew_source)
+                        rs = ShapeType.get_str_name(model_main.int_shape_source)
                         id = model_main.run_id
                         model_loads = True
                     except:
@@ -80,7 +81,7 @@ for map in maps:
                 code = 1
             
             if code == 0:
-                complete_runs.append( [ map, im, id, log, path_log, models_log ] )
+                complete_runs.append( [ map, rs, im, id, log, path_log, models_log ] )
             else:
                 incomplete_runs.append( [log, code, path_log, models_log] )
 
@@ -90,7 +91,7 @@ for map in maps:
 
 print(f"Complete runs: {len(complete_runs)}")
 for run in complete_runs:
-    print(f"{run[0]}\t{run[1]}-{run[2]:2.0f}\t{run[3]}")
+    print(f"{run[0]:30s}\t{run[1]}+{run[2]}-{run[3]:2d}\t{run[4]}")
 
 print(f"Incomplete runs: {len(incomplete_runs)}")
 for run in incomplete_runs:
@@ -134,10 +135,10 @@ if len(complete_runs) > 0:
         if not os.path.exists(archive_log_dir): os.mkdir(archive_log_dir)
 
         for run in complete_runs:
-            map, im, id, log, path_log, models_log = run
+            map, rs, im, id, log, path_log, models_log = run
 
             if not os.path.exists( os.path.join(archive_log_dir, map) ): os.mkdir( os.path.join(archive_log_dir, map) )
-            target_dir = os.path.join( archive_log_dir, map, f"{im}-{id}" )
+            target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}-{id}" )
 
             # Dir/Overwrite check
             if os.path.exists( target_dir ):
