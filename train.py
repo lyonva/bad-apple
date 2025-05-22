@@ -113,6 +113,7 @@ def train(config):
         clip_range_vf=config.clip_range_vf,
         int_shape_source=config.int_shape_source,
         grm_delay=config.grm_delay,
+        adopes_coef_inc=config.adopes_coef_inc,
         policy_kwargs=policy_kwargs,
         env_source=config.env_source,
         env_render=config.env_render,
@@ -207,6 +208,8 @@ def train(config):
               help='Source of rewarde shaping for IRs: [NoRS|GRM|ADOPES]')
 @click.option('--grm_delay', default=1, type=int,
               help='D-GRM  for intrinsic reward discounting')
+@click.option('--adopes_coef_inc', default=0.005, type=float,
+              help='Scale coefficient increase per-rollout that affects F2 shaping. Set to 1 for ADOPS (No scaling F2).')
 # Network params
 @click.option('--use_model_rnn', default=1, type=int, help='Whether to enable RNNs for the dynamics model')
 @click.option('--latents_dim', default=256, type=int, help='Dimensions of latent features in policy/value nets\' MLPs')
@@ -254,7 +257,7 @@ def main(
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
     adv_momentum, adv_ext_coeff, adv_int_coeff, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
-    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
+    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_coef_inc, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,
     rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, model_recs, record_video,

@@ -14,6 +14,7 @@ from src.utils.common_func import set_random_seed
 from src.utils.enum_types import ModelType, EnvSrc, ShapeType
 
 from src.algo.reward_shaping.grm import GRM
+from src.algo.reward_shaping.adopes import ADOPES
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import BaseCallback
@@ -58,6 +59,7 @@ class PPORollout(BaseAlgorithm):
         sde_sample_freq: int,
         int_shape_source : ShapeType,
         grm_delay : int,
+        adopes_coef_inc : float,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -110,6 +112,7 @@ class PPORollout(BaseAlgorithm):
         self.adv_eps = adv_eps
         self.int_shape_source = int_shape_source
         self.grm_delay = grm_delay
+        self.adopes_coef_inc = adopes_coef_inc
         self.env_source = env_source
         self.env_render = env_render
         self.fixed_seed = fixed_seed
@@ -130,8 +133,7 @@ class PPORollout(BaseAlgorithm):
         elif self.int_shape_source == ShapeType.GRM:
             self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
         elif self.int_shape_source == ShapeType.ADOPES:
-            self.int_shape_model = None
-            raise NotImplementedError
+            self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=adopes_coef_inc)
         else:
             raise TypeError
 
@@ -683,16 +685,16 @@ class PPORollout(BaseAlgorithm):
             else:
                 raise NotImplementedError
 
-        # Reward Shaping
+        return intrinsic_rewards, model_mems
+
+    def shape_intrinsic_rewards(self, rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones):
         if self.int_shape_source == ShapeType.NoRS:
             pass
         elif self.int_shape_source == ShapeType.GRM:
-            intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, done_tensor)
+            intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, dones)
         elif self.int_shape_source == ShapeType.ADOPES:
-            pass
-
-        return intrinsic_rewards, model_mems
-
+            intrinsic_rewards = self.int_shape_model.shape_rewards(rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones)
+        return intrinsic_rewards
 
     def collect_rollouts(
         self,
@@ -749,6 +751,9 @@ class PPORollout(BaseAlgorithm):
             # IR Generation
             intrinsic_rewards, model_mems = \
                 self.create_intrinsic_rewards(new_obs, actions, dones)
+            
+            # Intrinsic Reward Shaping
+            intrinsic_rewards = self.shape_intrinsic_rewards(rewards, intrinsic_rewards, ext_values, int_values, new_ext_values, new_int_values, dones)
 
             # Log after the transition and IR generation
             self.log_after_transition(rewards, intrinsic_rewards)
@@ -792,6 +797,7 @@ class PPORollout(BaseAlgorithm):
         ppo_rollout_buffer.compute_intrinsic_rewards()
         ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, dones)
         callback.on_rollout_end()
+        if self.int_shape_source == ShapeType.ADOPES: self.int_shape_model.on_rollout_end()
         return True
 
 
