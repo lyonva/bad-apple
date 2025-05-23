@@ -110,7 +110,7 @@ def test(config):
 
                 while steps <= config.total_steps:
                     obs_tensor = obs_as_tensor(obs, config.device)
-                    actions, values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems )
+                    actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems )
                     actions = actions.cpu().numpy()
                     if isinstance(env.action_space, gym.spaces.Box):
                         actions = np.clip(actions, env.action_space.low, env.action_space.high)
