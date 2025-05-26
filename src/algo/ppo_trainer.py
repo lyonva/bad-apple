@@ -243,7 +243,7 @@ class PPOTrainer(PPORollout):
                     # Value loss using the TD(gae_lambda) target
                     ext_value_loss = F.mse_loss(rollout_data.ext_returns, ext_values_pred)
                     int_value_loss = F.mse_loss(rollout_data.int_returns, int_values_pred)
-                    value_loss = 0.5*(ext_value_loss + int_value_loss)
+                    value_loss = ext_value_loss + int_value_loss
 
                     # Entropy loss favor exploration
                     if entropy is None:

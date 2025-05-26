@@ -280,7 +280,8 @@ class PPOModel(ActorCriticCnnPolicy):
         else:
             raise NotImplementedError(f"Unsupported distribution '{self.action_dist}'.")
 
-        self.value_net = nn.Linear(self.mlp_extractor.latent_dim_vf, 2)
+        self.value_net_ext = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
+        self.value_net_int = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
         # Init weights: use orthogonal initialization
         # with small initial weight for the output
         if self.ortho_init:
@@ -292,7 +293,8 @@ class PPOModel(ActorCriticCnnPolicy):
                 self.features_extractor: np.sqrt(2),
                 self.mlp_extractor: np.sqrt(2),
                 self.action_net: 0.01,
-                self.value_net: 1,
+                self.value_net_ext: 1,
+                self.value_net_int: 1,
             }
             if not self.share_features_extractor:
                 # Note(antonin): this is to keep SB3 results
@@ -317,8 +319,10 @@ class PPOModel(ActorCriticCnnPolicy):
     def _init_modules(self) -> None:
         nn.init.zeros_(self.action_net.weight)
         nn.init.zeros_(self.action_net.bias)
-        nn.init.zeros_(self.value_net.weight)
-        nn.init.zeros_(self.value_net.bias)
+        nn.init.zeros_(self.value_net_ext.weight)
+        nn.init.zeros_(self.value_net_ext.bias)
+        nn.init.zeros_(self.value_net_int.weight)
+        nn.init.zeros_(self.value_net_int.bias)
 
         module_names = {
             self.features_extractor: 'features_extractor',
@@ -365,8 +369,8 @@ class PPOModel(ActorCriticCnnPolicy):
         distribution = self._get_action_dist_from_latent(latent_pi)
         actions = distribution.get_actions(deterministic=deterministic)
         log_prob = distribution.log_prob(actions) 
-        values = self.value_net(latent_vf)
-        ext_values, int_values = values[:,0], values[:,1]
+        ext_values = self.value_net_ext(latent_vf)
+        int_values = self.value_net_int(latent_vf)
         return actions, ext_values, int_values, log_prob, memories
 
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
@@ -374,6 +378,6 @@ class PPOModel(ActorCriticCnnPolicy):
         latent_pi, latent_vf, latent_sde, memories = self._get_latent(obs, mem)
         distribution = self._get_action_dist_from_latent(latent_pi)
         log_prob = distribution.log_prob(act)
-        values = self.value_net(latent_vf)
-        ext_values, int_values = values[:,0], values[:,1]
+        ext_values = self.value_net_ext(latent_vf)
+        int_values = self.value_net_int(latent_vf)
         return ext_values, int_values, log_prob, distribution.entropy(), memories

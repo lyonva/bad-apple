@@ -42,10 +42,15 @@ def make_plots(file):
     # df = df[df["iterations"] <= 10] # Speed up for testing
     # df = df[df["iterations"] % 100 == 1 ] # Speed up for testing
 
+    # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
+    #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
+    #              ["No IM", "Max Entropy", "GRM+ME", "ADOPES+ME"],
+    #              ["No IM", "ICM", "GRM+ICM", "ADOPES+ICM"]
+    # ]
     sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
-                 ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
-                 ["No IM", "Max Entropy", "GRM+ME", "ADOPES+ME"],
-                 ["No IM", "ICM", "GRM+ICM", "ADOPES+ICM"]
+                 ["No IM", "State Count", "GRM+SC"],
+                 ["No IM", "Max Entropy", "GRM+ME"],
+                 ["No IM", "ICM", "GRM+ICM"]
     ]
 
     for i, sub_plot in enumerate(sub_plots):
@@ -64,7 +69,7 @@ def make_plots(file):
             else:
                 ax.set_ylim((0,1))
                 ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
-        g.add_legend(ncol=len(im))
+        g.add_legend(ncol=len(sub_plot))
         g.tight_layout()
         plt.show()
         g.savefig(f"all_plots-{i}.png", dpi=300)

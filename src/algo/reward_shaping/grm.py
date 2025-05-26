@@ -9,7 +9,7 @@ class GRM(IntrinsicRewardShaping):
         self.grm_buffer = np.zeros((n_envs, grm_delay))
     
     def shape_rewards(self, int_rewards, curr_dones):
-        curr_dones = curr_dones.cpu().numpy()
+        # curr_dones = curr_dones.cpu().numpy()
         undiscounted_rewards = int_rewards.copy()
         grm_rewards = int_rewards - self.grm_buffer[:,-1]/(self.gamma**(self.grm_delay))
         # Check for episode ends and discount all others if so

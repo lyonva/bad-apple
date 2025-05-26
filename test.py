@@ -167,6 +167,6 @@ def main(
 
     test(config)
 
-#  python .\test.py --game_name=DoorKey-16x16 --models_dir=analysis\logs\MiniGrid-DoorKey-16x16-v0 --baseline=nomodel --snaps=[3,15,305,610,915,1221]
+#  python .\test.py --game_name=DoorKey-8x8 --models_dir=analysis\logs\MiniGrid-DoorKey-8x8-v0 --baseline=nors+nomodel --snaps=[50,100,250,500,1000]
 if __name__ == '__main__':
     main()

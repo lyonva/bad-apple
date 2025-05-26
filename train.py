@@ -179,7 +179,7 @@ def train(config):
 @click.option('--adv_eps', default=1e-5, type=float, help='Epsilon for advantage normalization')
 @click.option('--adv_momentum', default=0.9, type=float, help='EMA smoothing factor for advantage normalization')
 @click.option('--adv_ext_coeff', default=1, type=float, help='Advantage coefficient for extrinsic (real) rewards')
-@click.option('--adv_int_coeff', default=1, type=float, help='Advantage coefficient for intrinsic rewards')
+@click.option('--adv_int_coeff', default=0.5, type=float, help='Advantage coefficient for intrinsic rewards')
 # Reward params
 @click.option('--ext_rew_coef', default=1.0, type=float, help='Coefficient of extrinsic rewards')
 @click.option('--int_rew_coef', default=1e-2, type=float, help='Coefficient of intrinsic rewards (IRs)')
