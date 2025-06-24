@@ -5,6 +5,7 @@ wandb/
 models/
 
 # Data
+MiniGrid-*.png
 analysis/artifacts/
 analysis/models/
 analysis/*/*

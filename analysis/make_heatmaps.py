@@ -4,6 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import re
 
 # map_dims = {
 #     "Empty-16x16" : (16, 16, 0.05, 0.05),
@@ -14,9 +15,10 @@ import seaborn as sns
 
 map_dims = {
     "Empty-16x16" : (16, 16, 0.04, 0.02),
-    "DoorKey-8x8" : (8, 8, 0.1, 0.05),
+    "DoorKey-8x8" : (8, 8, 0.075, 0.0375),
+    "DoorKey-16x16" : (16, 16, 0.025, 0.0125),
     "RedBlueDoors-8x8" : (16, 8, 0.1, 0.05),
-    "FourRooms" : (19, 19, 0.0075, 0.005),
+    "FourRooms" : (19, 19, 0.01, 0.02),
 }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
@@ -59,8 +61,9 @@ def make_heatmaps(file, baseline):
     sn1 = [50,100,250,500,1000]
     sn_name = ["5%", "10%", "25%", "50%", "100%"]
     df["snapshot"] = df["snapshot"].replace(sn1, sn_name)
-
-    map = file.split("\\")[-1].split(".")[0].split("-", 1)[1]
+    
+    
+    map = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed[\d+])?.csv', file).group(1)
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
     ims = im_name
@@ -68,6 +71,9 @@ def make_heatmaps(file, baseline):
 
     # Filter by seed
     # df = df[df["seed"]==1]
+
+    # Filter by snapshot
+    snapshots = ["5%", "100%"]
 
     big_map = []
 
@@ -80,10 +86,13 @@ def make_heatmaps(file, baseline):
             big_map.append( (snapshot, im, sum_df) )
 
     # Heatmap
+    sns.set(font_scale=1.5)
     big_map = pd.DataFrame(big_map, columns=["snapshot", "im", "data"])
-    g = sns.FacetGrid(big_map, row="im", col="snapshot", margin_titles=True)
+    g = sns.FacetGrid(big_map, col="im", row="snapshot", margin_titles=True)
     superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=0, vmax=max_v)
-    g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
+    g.set_titles(col_template="{col_name}", row_template="Training: {row_name}")
+    for (row_val, col_val), ax in g.axes_dict.items():
+        ax.set_axis_off()
     superheat.figure.savefig(f"heat-{map}.png")
     # plt.show()
 
@@ -97,10 +106,13 @@ def make_heatmaps(file, baseline):
             tech -= base
             diff_map.append( (snapshot, im, tech) )
     
+    sns.set(font_scale=1.5)
     diff_map = pd.DataFrame(diff_map, columns=["snapshot", "im", "data"])
-    g = sns.FacetGrid(diff_map, row="im", col="snapshot", margin_titles=True)
+    g = sns.FacetGrid(diff_map, col="im", row="snapshot", margin_titles=True)
     superheat=g.map_dataframe(draw_diff_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v)
     g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
+    for (row_val, col_val), ax in g.axes_dict.items():
+        ax.set_axis_off()
     superheat.figure.savefig(f"diff-{map}.png")
     # plt.show()
 

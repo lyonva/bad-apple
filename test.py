@@ -64,6 +64,7 @@ def test(config):
     if len(seeds) == 0: seeds = set([int(x.split("-")[1]) for x in os.listdir(config.models_dir)])
     data, stats = dict( (tech, {}) for tech in techs ), dict( (tech, {}) for tech in techs )
     pos = []
+    pic = False
 
     for snap in config.snaps:
         for tech in techs: data[tech][snap], stats[tech][snap] = {}, {}
@@ -81,18 +82,23 @@ def test(config):
 
             env.can_see_walls = model_baseline.can_see_walls
             env.image_noise_scale = model_baseline.image_noise_scale
-            env.image_rng = np.random.default_rng(seed=seed + 1313)
-            np.random.seed(seed)
-            local_seeds = np.random.rand(config.num_processes)
-            local_seeds = [int(s * 0x7fffffff) for s in local_seeds]
-            np.random.seed(seed)
-            env.set_seeds(local_seeds)
-            env.waiting = True
-            for i in range(config.num_processes):
-                env.send_reset(env_id=i)
-            for i in range(config.num_processes):
-                obs[i] = env.recv_obs(env_id=i)
-            env.waiting = False
+            if config.fixed_seed == -1:
+                env.image_rng = np.random.default_rng(seed=seed + 1313)
+                np.random.seed(seed)
+                s = np.random.rand() * 0x7fffffff
+                local_seeds = [s for _ in range(config.num_processes)]
+                np.random.seed(seed)
+            else:
+
+                np.random.seed(config.fixed_seed)
+                local_seeds = [config.fixed_seed for _ in range(config.num_processes)]
+            obs = env.set_seeds(local_seeds)
+            # env.waiting = True
+            # for i in range(config.num_processes):
+            #     env.send_reset(env_id=i)
+            # for i in range(config.num_processes):
+            #     obs[i] = env.recv_obs(env_id=i)
+            # env.waiting = False
 
             obs_shape = get_obs_shape(env.observation_space)
             action_dim = get_action_dim(env.action_space)
@@ -103,12 +109,31 @@ def test(config):
                 model = PPOTrainer.load( os.path.join(config.models_dir, f"{tech}-{seed}", f"snapshot-{snap}"), env=None )
                 record = TestingRecord(buffer_size, config.num_processes, obs_shape, action_dim)
                 
+                
                 obs = env.reset()
+                # if config.fixed_seed != -1:
+                #     np.random.seed(config.fixed_seed)
+                env.waiting = True
+                for i in range(config.num_processes):
+                    env.send_reset(env_id=i)
+                for i in range(config.num_processes):
+                    obs[i] = env.recv_obs(env_id=i)
+                env.waiting = False
+
                 steps = 0
                 iters = 0
                 model.policy.eval()
 
                 while steps <= config.total_steps:
+                    if config.render:
+                        env.render(mode="human")
+                        if not(pic):
+                            img = env.render(mode="rgb_array")
+                            from PIL import Image
+                            im = Image.fromarray(img)
+                            im.save(f"{config.env_name}.png")
+                            pic = True
+
                     obs_tensor = obs_as_tensor(obs, config.device)
                     actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems )
                     actions = actions.cpu().numpy()
@@ -131,6 +156,15 @@ def test(config):
                     # Log positions
                     for p in range(config.num_processes):
                         pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1]) )
+                    
+                    # For done envs, reset with same seed
+                    # if config.fixed_seed != -1:
+                        # np.random.seed(config.fixed_seed)
+                    for i, d in enumerate(dones):
+                        if d:
+                            env.send_reset(env_id=i)
+                            new_obs[i] = env.recv_obs(env_id=i)
+
 
                     obs = new_obs
                     iters += 1
@@ -139,7 +173,7 @@ def test(config):
                 data[tech][snap][seed] = record
     
     pos_df = pd.DataFrame.from_records(pos, columns=["im", "seed", "snapshot", "iterations", "n_env", "x", "y"])
-    pos_df.to_csv(f"analysis/positions-{config.game_name}.csv")
+    pos_df.to_csv(f"analysis/positions-{config.game_name}{'' if config.fixed_seed == -1 else '-fixed' + str(config.fixed_seed)}.csv")
 
 
 
@@ -154,9 +188,11 @@ def test(config):
 # Process options
 @click.option('--num_processes', default=16, type=int, help='Number of testing processes (workers)')
 @click.option('--total_steps', default=int(5000), type=int, help='Total number of frames to run for testing')
+@click.option('--fixed_seed', default=-1, type=int, help="Fixed seed for every environment reset. -1 will use the same seed the model was trained on.")
+@click.option('--render', default=0, type=int, help="Activate rendering. Will significantly slow down the process.")
 
 def main(
-    game_name, models_dir, baseline, seeds, snaps, num_processes, total_steps,
+    game_name, models_dir, baseline, seeds, snaps, num_processes, total_steps, fixed_seed, render,
 ):
     args = locals().items()
     config = TrainingConfig()
