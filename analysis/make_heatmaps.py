@@ -58,8 +58,10 @@ def make_heatmaps(file, baseline):
     # sn1 = [3, 15, 305, 610, 915, 1221]
     # sn_name = ["0.25%", "1.25%", "25%", "50%", "75%", "100%"]
     # sn1 = [25, 49, 123, 245, 489]
-    sn1 = [50,100,250,500,1000]
+    # sn1 = [50,100,250,500,1000]
+    sn1 = [250,500,1250,2500,5000]
     sn_name = ["5%", "10%", "25%", "50%", "100%"]
+    # sn_name = ["10%", "100%"]
     df["snapshot"] = df["snapshot"].replace(sn1, sn_name)
     
     
@@ -73,7 +75,7 @@ def make_heatmaps(file, baseline):
     # df = df[df["seed"]==1]
 
     # Filter by snapshot
-    snapshots = ["5%", "100%"]
+    # snapshots = ["5%", "100%"]
 
     big_map = []
 
