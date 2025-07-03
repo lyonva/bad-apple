@@ -10,6 +10,12 @@ class ADOPES(IntrinsicRewardShaping):
         self.adopes_coef_inc = adopes_coef_inc
     
     def shape_rewards(self, rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones):
+        
+        if len(ext_values.shape) > 1: ext_values = ext_values[:,0]
+        if len(int_values.shape) > 1: int_values = int_values[:,0]
+        if len(next_ext_values.shape) > 1: next_ext_values = next_ext_values[:,0]
+        if len(next_int_values.shape) > 1: next_int_values = next_int_values[:,0]
+        
         adopes_rewards = intrinsic_rewards.copy()
         q_e = rewards + next_ext_values.cpu().numpy() * (1-dones)
         q_i = next_int_values.cpu().numpy() * (1-dones) # Actually q_i,t+1
