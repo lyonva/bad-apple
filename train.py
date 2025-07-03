@@ -208,7 +208,7 @@ def train(config):
               help='Source of rewarde shaping for IRs: [NoRS|GRM|ADOPES]')
 @click.option('--grm_delay', default=1, type=int,
               help='D-GRM  for intrinsic reward discounting')
-@click.option('--adopes_coef_inc', default=0.005, type=float,
+@click.option('--adopes_coef_inc', default=0.0004, type=float,
               help='Scale coefficient increase per-rollout that affects F2 shaping. Set to 1 for ADOPS (No scaling F2).')
 # Network params
 @click.option('--use_model_rnn', default=1, type=int, help='Whether to enable RNNs for the dynamics model')
