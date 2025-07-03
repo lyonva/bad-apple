@@ -15,6 +15,7 @@ from src.utils.enum_types import ModelType, EnvSrc, ShapeType
 
 from src.algo.reward_shaping.grm import GRM
 from src.algo.reward_shaping.adopes import ADOPES
+from src.algo.reward_shaping.pies import PIES
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import BaseCallback
@@ -60,6 +61,7 @@ class PPORollout(BaseAlgorithm):
         int_shape_source : ShapeType,
         grm_delay : int,
         adopes_coef_inc : float,
+        pies_decay : int,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -113,6 +115,7 @@ class PPORollout(BaseAlgorithm):
         self.int_shape_source = int_shape_source
         self.grm_delay = grm_delay
         self.adopes_coef_inc = adopes_coef_inc
+        self.pies_decay = pies_decay
         self.env_source = env_source
         self.env_render = env_render
         self.fixed_seed = fixed_seed
@@ -134,6 +137,8 @@ class PPORollout(BaseAlgorithm):
             self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
         elif self.int_shape_source == ShapeType.ADOPES:
             self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=adopes_coef_inc)
+        elif self.int_shape_source == ShapeType.PIES:
+            self.int_shape_model = PIES(self.gamma, self.n_envs, pies_decay)
         else:
             raise TypeError
 
@@ -694,6 +699,8 @@ class PPORollout(BaseAlgorithm):
             intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, dones)
         elif self.int_shape_source == ShapeType.ADOPES:
             intrinsic_rewards = self.int_shape_model.shape_rewards(rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones)
+        elif self.int_shape_source == ShapeType.PIES:
+            intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards)
         return intrinsic_rewards
 
     def collect_rollouts(
@@ -797,7 +804,8 @@ class PPORollout(BaseAlgorithm):
         ppo_rollout_buffer.compute_intrinsic_rewards()
         ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, dones)
         callback.on_rollout_end()
-        if self.int_shape_source == ShapeType.ADOPES: self.int_shape_model.on_rollout_end()
+        if (self.int_shape_source == ShapeType.ADOPES) or (self.int_shape_source == ShapeType.PIES):
+            self.int_shape_model.on_rollout_end()
         return True
 
 

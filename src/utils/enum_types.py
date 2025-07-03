@@ -22,7 +22,9 @@ class ModelType(Enum):
             return model_type
         if isinstance(model_type, str):
             model_type = model_type.strip().lower()
-            if model_type == "icm":
+            if model_type == "nomodel":
+                return ModelType.NoModel
+            elif model_type == "icm":
                 return ModelType.ICM
             elif model_type == "rnd":
                 return ModelType.RND
@@ -42,8 +44,6 @@ class ModelType(Enum):
                 return ModelType.StateCount
             elif model_type == "maxentropy":
                 return ModelType.MaxEntropy
-            else:
-                return ModelType.NoModel
         raise ValueError
     
     @staticmethod
@@ -73,14 +73,13 @@ class ModelType(Enum):
                 return "maxentropy"
             elif model_type == ModelType.NoModel:
                 return "nomodel"
-            else:
-                return ModelType.NoModel
         raise ValueError
 
 class ShapeType(Enum):
     NoRS = 0
     GRM = 1
     ADOPES = 2
+    PIES = 3
 
     @staticmethod
     def get_enum_shape_type(shape_type):
@@ -92,8 +91,8 @@ class ShapeType(Enum):
                 return ShapeType.GRM
             elif shape_type == "adopes" or shape_type == "adops":
                 return ShapeType.ADOPES
-            else:
-                return ShapeType.NoRS
+            elif shape_type == "adopes" or shape_type == "adops":
+                return ShapeType.ADOPES
         raise ValueError
     
     @staticmethod
@@ -105,6 +104,8 @@ class ShapeType(Enum):
                 return "grm"
             elif shape_type == ShapeType.ADOPES:
                 return "adopes"
+            elif shape_type == ShapeType.PIES:
+                return "pies"
             elif shape_type == ShapeType.NoRS:
                 return "nors"
         raise ValueError
