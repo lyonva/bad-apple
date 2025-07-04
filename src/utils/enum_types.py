@@ -93,6 +93,8 @@ class ShapeType(Enum):
                 return ShapeType.ADOPES
             elif shape_type == "adopes" or shape_type == "adops":
                 return ShapeType.ADOPES
+            elif shape_type == "pies":
+                return ShapeType.PIES
         raise ValueError
     
     @staticmethod
