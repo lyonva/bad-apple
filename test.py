@@ -6,6 +6,7 @@ import numpy as np
 import torch as th
 import pandas as pd
 import gymnasium as gym
+import time
 
 from math import ceil
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
@@ -106,6 +107,7 @@ def test(config):
             # Data collection
             # Per model
             for tech in techs:
+                if config.render: print(f"{tech}-{snap}")
                 model = PPOTrainer.load( os.path.join(config.models_dir, f"{tech}-{seed}", f"snapshot-{snap}"), env=None )
                 record = TestingRecord(buffer_size, config.num_processes, obs_shape, action_dim)
                 
@@ -133,6 +135,8 @@ def test(config):
                             im = Image.fromarray(img)
                             im.save(f"{config.env_name}.png")
                             pic = True
+                        time.sleep(0.1)
+                        
 
                     obs_tensor = obs_as_tensor(obs, config.device)
                     actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems )
@@ -140,7 +144,7 @@ def test(config):
                     if isinstance(env.action_space, gym.spaces.Box):
                         actions = np.clip(actions, env.action_space.low, env.action_space.high)
                     new_obs, rewards, dones, infos = env.step(actions)
-                    agent_positions = np.array(env.get_attr('agent_pos'))
+                    
 
                     intrinsic_rewards, model_mems = \
                         model.create_intrinsic_rewards(new_obs, actions, dones)
@@ -150,13 +154,6 @@ def test(config):
                     if model_mems is not None:
                         model._last_model_mems = model_mems.detach().clone()
                     
-                    # Record
-                    record.add(iters, obs, actions.reshape(-1, 1), new_obs, rewards, intrinsic_rewards, dones, agent_positions)
-                    
-                    # Log positions
-                    for p in range(config.num_processes):
-                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1]) )
-                    
                     # For done envs, reset with same seed
                     # if config.fixed_seed != -1:
                         # np.random.seed(config.fixed_seed)
@@ -165,6 +162,14 @@ def test(config):
                             env.send_reset(env_id=i)
                             new_obs[i] = env.recv_obs(env_id=i)
 
+                    agent_positions = np.array(env.get_attr('agent_pos'))
+                    
+                    # Record
+                    record.add(iters, obs, actions.reshape(-1, 1), new_obs, rewards, intrinsic_rewards, dones, agent_positions)
+                    
+                    # Log positions
+                    for p in range(config.num_processes):
+                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1]) )
 
                     obs = new_obs
                     iters += 1
@@ -203,6 +208,6 @@ def main(
 
     test(config)
 
-#  python .\test.py --game_name=DoorKey-8x8 --models_dir=analysis\logs\MiniGrid-DoorKey-8x8-v0 --baseline=nors+nomodel --snaps=[50,100,250,500,1000]
+#  python .\test.py --game_name=DoorKey-8x8 --models_dir=analysis\logs\MiniGrid-DoorKey-8x8-v0 --baseline=nors+nomodel --snaps=[250,500,1250,2500,5000]
 if __name__ == '__main__':
     main()
