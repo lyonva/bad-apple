@@ -15,8 +15,10 @@ def make_plots(file):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
-    im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
-    im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
+    im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
+    im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
@@ -56,15 +58,23 @@ def make_plots(file):
         #              ["No IM", "Max Entropy", "GRM+ME", "ADOPES+ME"],
         #              ["No IM", "ICM", "GRM+ICM", "ADOPES+ICM"]
         # ]
-        sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
-                    ["No IM", "State Count", "GRM+SC"],
-                    ["No IM", "Max Entropy", "GRM+ME"],
-                    ["No IM", "ICM", "GRM+ICM"]
+        # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
+        #             ["No IM", "State Count", "GRM+SC"],
+        #             ["No IM", "Max Entropy", "GRM+ME"],
+        #             ["No IM", "ICM", "GRM+ICM"]
+        # ]
+        # sub_group = ["Base IM", "State Count", "Max Entropy", "ICM"]
+        sub_plots = [["No IM","State Count", "ICM"],
+                    ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"],
+                    ["No IM", "ICM", "GRM+ICM", "ADOPES+ICM", "PIES+ICM"],
+                    ["No IM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM"],
         ]
-        sub_group = ["Base IM", "State Count", "Max Entropy", "ICM"]
+        sub_group = ["Base IM", "State Count", "ICM", "GRM/ADOPES"]
 
-        pal = ["gray"] + sns.color_palette("Paired", 6)
-        pal_order = ["No IM", "State Count", "GRM+SC", "Max Entropy", "GRM+ME", "ICM", "GRM+ICM"]
+        # pal = ["gray"] + sns.color_palette("Paired", 6)
+        # pal_order = ["No IM", "State Count", "GRM+SC", "Max Entropy", "GRM+ME", "ICM", "GRM+ICM"]
+        pal = ["gray"] + sns.color_palette("Paired", 8)
+        pal_order = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
         # sub_colors = [[ "gray", pal[0], pal[2], pal[4] ],
         #               [ "gray", pal[0], pal[1] ],
         #               [ "gray", pal[2], pal[3] ],
@@ -84,7 +94,8 @@ def make_plots(file):
         g.set_axis_labels("")
         for (row_val), ax in g.axes_dict.items():
             # ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
-            ax.set_xticks([0, 200, 400, 600, 800, 1000])
+            # ax.set_xticks([0, 200, 400, 600, 800, 1000])
+            ax.set_xticks([0, 1000, 2000, 3000, 4000, 5000])
             ax.set_ylim((0,1))
             ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
             # ax.move_legend(ax, )

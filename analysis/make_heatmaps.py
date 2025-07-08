@@ -48,10 +48,12 @@ def make_heatmaps(file, baseline):
     # im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
     # im = ["nomodel", "statecount", "maxentropy", "icm", "rnd", "grm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
-    im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
-    im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
+    im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
+    im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
 
@@ -84,7 +86,7 @@ def make_heatmaps(file, baseline):
             # counts = np.zeros((mapsize, mapsize))
             sub_df = df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["x","y"]]
             counts = sub_df.value_counts() / sub_df.shape[0]
-            sum_df = np.array([ [0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
+            sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
             big_map.append( (snapshot, im, sum_df) )
 
     # Heatmap
