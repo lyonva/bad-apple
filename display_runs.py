@@ -14,11 +14,22 @@ def yes_or_no(question):
         if reply[:1] == 'n':
             return False
 
-max_iter = 5000
+def get_map_snaps(map_name):
+    if map_name in snap_dict.keys():
+        return snap_dict[map_name]
+    return default_snaps
+
+snap_dict = {
+    "MiniGrid-Empty-16x16" : [125,250,625,1250,2500],
+    "MiniGrid-DoorKey-8x8-v0" : [500,1000,2500,5000,10000],
+    "MiniGrid-RedBlueDoors-8x8" : [1000,2000,5000,10000,20000],
+}
+default_snaps = [250,500,1250,2500,5000]
+
+
+archive_dir = "analysis"
 log_dir = "logs"
 models_dir = "models"
-model_snap_tags = [250,500,1250,2500,5000]
-archive_dir = "analysis"
 
 maps = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
 
@@ -29,6 +40,9 @@ empty_dirs = []
 for map in maps:
     # print(30*"-")
     # print(map)
+    model_snap_tags = get_map_snaps(map)
+    max_iter = model_snap_tags[-1]
+
     logs = [ f.name for f in os.scandir(join(log_dir, map)) if f.is_dir() ]
 
     for log in logs:
