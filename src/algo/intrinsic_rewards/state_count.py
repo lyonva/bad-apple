@@ -40,48 +40,36 @@ class StateCountModel(IntrinsicRewardBaseModel):
                          model_features_dim, model_latents_dim, model_mlp_norm,
                          model_cnn_norm, model_gru_norm, use_model_rnn, model_mlp_layers,
                          gru_layers, use_status_predictor)
-        # self._build()
-        # self._init_modules()
-        # self._init_optimizers()
+        self._build()
+        self._init_modules()
+        self._init_optimizers()
         self.counts = dict()
 
     def _build(self) -> None:
-        # No building required
-        pass
+        # Build CNN and RNN
+        super()._build()
 
+        # Build MLP
+        self.model_mlp = StateCountOutputHeads(
+            features_dim = self.model_features_dim,
+            latents_dim = self.model_latents_dim,
+            activation_fn = self.activation_fn,
+            mlp_norm = self.model_mlp_norm,
+            mlp_layers = self.model_mlp_layers,
+        )
 
-    def forward(self,
-        curr_obs: Tensor, next_obs: Tensor, last_mems: Tensor,
-        curr_act: Tensor, curr_dones: Tensor,
-        curr_key_status: Optional[Tensor],
-        curr_door_status: Optional[Tensor],
-        curr_target_dists: Optional[Tensor],
-    ):
-        pass
+    def _init_modules(self):
+        super()._init_modules()
 
-    def _get_hash(self, next_obs):
-        # hash tensor based on https://stackoverflow.com/questions/74805446/how-to-hash-a-pytorch-tensor
-        if next_obs.dtype != th.int64:
-            next_obs = next_obs.to(th.int64)
-        batch_size = next_obs.shape[0]
-        hashes = np.zeros(batch_size, dtype=np.int64)
-        for env_id in range(batch_size):
-            env_obs = next_obs[env_id]
-            while env_obs.ndim > 0:
-                env_obs = self._reduce_last_axis(env_obs)
-            hashes[env_id] = env_obs
-        return hashes
-    
-    @th.no_grad()
-    def _reduce_last_axis(self, x: Tensor) -> Tensor:
-        assert x.dtype == th.int64
-        acc = th.zeros_like(x[..., 0])
-        for i in range(x.shape[-1]):
-            acc *= 6364136223846793005
-            acc += 1
-            acc += x[..., i]
-            # acc %= MODULUS  # Not really necessary.
-        return acc
+        # Randomize all parameters
+        for param in self.model_mlp.parameters():
+            nn.init.uniform(param)
+        for param in self.model_cnn_extractor.parameters():
+            nn.init.uniform(param)
+
+    def forward(self, curr_obs: Tensor, last_mems: Tensor, curr_dones: Optional[Tensor]):
+        curr_mlp_inputs = self._get_cnn_embeddings(curr_obs)
+        return self.model_mlp(curr_mlp_inputs)
 
 
     def get_intrinsic_rewards(self,
@@ -90,10 +78,16 @@ class StateCountModel(IntrinsicRewardBaseModel):
     ):
         batch_size = curr_obs.shape[0]
         int_rews = np.zeros(batch_size, dtype=np.float32)
-        hashes = self._get_hash(next_obs)
+        
+        with th.no_grad():
+            sc_ids = \
+                self.forward(curr_obs, last_mems, curr_dones).detach().cpu().numpy()
+        
+        print(sc_ids)
+
         for env_id in range(batch_size):
             # Update historical observation embeddings
-            hash = hashes[env_id]
+            hash = sc_ids[env_id].item()
             if hash not in self.counts:
                 self.counts[hash] = 0
             self.counts[hash] += 1

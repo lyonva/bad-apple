@@ -269,3 +269,30 @@ class DiscriminatorOutputHeads(nn.Module):
         one_hot_act = F.one_hot(curr_act, num_classes=self.action_num)
         inputs = th.cat([curr_emb, next_emb, one_hot_act], dim=1)
         return self.nn(inputs)
+
+class StateCountOutputHeads(nn.Module):
+    def __init__(self,
+                 features_dim: int,
+                 latents_dim: int = 128,
+                 activation_fn: Type[nn.Module] = nn.ReLU,
+                 mlp_norm: NormType = NormType.NoNorm,
+                 mlp_layers: int = 1,
+    ):
+        super().__init__()
+
+        self.compressor = nn.Sequential(
+            nn.Linear(features_dim, latents_dim),
+            NormType.get_norm_layer_1d(mlp_norm, latents_dim),
+            activation_fn(),
+
+            nn.Linear(latents_dim, 1),
+            NormType.get_norm_layer_1d(mlp_norm, 1),
+        )
+
+        for param in self.compressor.parameters():
+            param.requires_grad = False
+
+    def forward(self, emb: Tensor) -> Tuple[Tensor, Tensor]:
+        with th.no_grad():
+            outputs = self.compressor(emb)
+        return outputs
