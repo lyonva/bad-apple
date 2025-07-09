@@ -145,7 +145,7 @@ def train(config):
 @click.option('--model_dir', default='./models', type=str, help='Directory for saving model snapshots')
 @click.option('--total_steps', default=int(10240000), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
-@click.option('--model_features_dim', default=256, type=int,
+@click.option('--model_features_dim', default=64, type=int,
               help='Number of neurons of a learned embedding (dynamics model)')
 @click.option('--learning_rate', default=1e-4, type=float, help='Learning rate of PPO')
 @click.option('--model_learning_rate', default=3e-4, type=float, help='Learning rate of the dynamics model')
