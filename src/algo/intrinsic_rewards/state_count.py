@@ -63,9 +63,9 @@ class StateCountModel(IntrinsicRewardBaseModel):
 
         # Randomize all parameters
         for param in self.model_mlp.parameters():
-            nn.init.uniform(param)
+            nn.init.uniform_(param)
         for param in self.model_cnn_extractor.parameters():
-            nn.init.uniform(param)
+            nn.init.uniform_(param)
 
     def forward(self, curr_obs: Tensor, last_mems: Tensor, curr_dones: Optional[Tensor]):
         curr_mlp_inputs = self._get_cnn_embeddings(curr_obs)
@@ -82,8 +82,6 @@ class StateCountModel(IntrinsicRewardBaseModel):
         with th.no_grad():
             sc_ids = \
                 self.forward(curr_obs, last_mems, curr_dones).detach().cpu().numpy()
-        
-        print(sc_ids)
 
         for env_id in range(batch_size):
             # Update historical observation embeddings
