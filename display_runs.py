@@ -20,9 +20,9 @@ def get_map_snaps(map_name):
     return default_snaps
 
 snap_dict = {
-    "MiniGrid-Empty-16x16" : [125,250,625,1250,2500],
+    "MiniGrid-Empty-16x16-v0" : [125,250,625,1250,2500],
     "MiniGrid-DoorKey-8x8-v0" : [500,1000,2500,5000,10000],
-    "MiniGrid-RedBlueDoors-8x8" : [1000,2000,5000,10000,20000],
+    "MiniGrid-RedBlueDoors-8x8-v0" : [1000,2000,5000,10000,20000],
 }
 default_snaps = [250,500,1250,2500,5000]
 
@@ -88,7 +88,8 @@ for map in maps:
                         code = 3
 
                     # print(im, id)
-                if iter != max_iter: code = 4
+                if iter != max_iter:
+                    code = 4
 
             else:
                 iter = 0
