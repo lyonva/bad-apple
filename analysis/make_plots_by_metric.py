@@ -4,6 +4,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
+ticks_dict = {
+    "Empty-16x16" : [0,500,1000,1500,2000,2500],
+    "DoorKey-8x8" : [0,2000,4000,6000,8000,10000],
+    "RedBlueDoors-8x8" : [0,4000,8000,12000,16000,20000],
+    "FourRooms" : [0,2000,4000,6000,8000,10000],
+    "DoorKey-16x16" : [0,2000,4000,6000,8000,10000]
+}
+
 def make_plots(file):
     # sns.set_theme(style="darkgrid")
     sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
@@ -95,7 +103,7 @@ def make_plots(file):
         for (row_val), ax in g.axes_dict.items():
             # ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
             # ax.set_xticks([0, 200, 400, 600, 800, 1000])
-            ax.set_xticks([0, 1000, 2000, 3000, 4000, 5000])
+            ax.set_xticks(ticks_dict[map])
             ax.set_ylim((0,1))
             ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
             # ax.move_legend(ax, )

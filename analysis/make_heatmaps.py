@@ -21,6 +21,12 @@ map_dims = {
     "FourRooms" : (19, 19, 0.01, 0.02),
 }
 
+snap_dict = {
+    "Empty-16x16" : [125,250,625,1250,2500],
+    "DoorKey-8x8" : [500,1000,2500,5000,10000],
+    "RedBlueDoors-8x8" : [1000,2000,5000,10000,20000],
+}
+
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
     data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
     # signs = np.logical_not(np.signbit(data)).astype(np.float32)*2 - 1
@@ -61,18 +67,19 @@ def make_heatmaps(file, baseline):
     # sn_name = ["0.25%", "1.25%", "25%", "50%", "75%", "100%"]
     # sn1 = [25, 49, 123, 245, 489]
     # sn1 = [50,100,250,500,1000]
-    sn1 = [250,500,1250,2500,5000]
-    sn_name = ["5%", "10%", "25%", "50%", "100%"]
+    # sn1 = [250,500,1250,2500,5000]
+    # sn_name = ["5%", "10%", "25%", "50%", "100%"]
     # sn_name = ["10%", "100%"]
-    df["snapshot"] = df["snapshot"].replace(sn1, sn_name)
     
     
     map = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed[\d+])?.csv', file).group(1)
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
     ims = im_name
-    snapshots = sn_name
+    sn1 = snap_dict[map]
+    snapshots = ["5%", "10%", "25%", "50%", "100%"]
 
+    df["snapshot"] = df["snapshot"].replace(sn1, snapshots)
     # Filter by seed
     # df = df[df["seed"]==1]
 
