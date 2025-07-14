@@ -208,6 +208,6 @@ def main(
 
     test(config)
 
-#  python .\test.py --game_name=DoorKey-8x8 --models_dir=analysis\logs\MiniGrid-DoorKey-8x8-v0 --baseline=nors+nomodel --snaps=[250,500,1250,2500,5000]
+#  python .\test.py --game_name=DoorKey-8x8 --models_dir=analysis\logs\MiniGrid-DoorKey-8x8-v0 --baseline=nors+nomodel --snaps=[500,1000,2500,5000,10000] --fixed_seed=1
 if __name__ == '__main__':
     main()

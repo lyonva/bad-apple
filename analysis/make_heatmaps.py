@@ -25,6 +25,7 @@ snap_dict = {
     "Empty-16x16" : [125,250,625,1250,2500],
     "DoorKey-8x8" : [500,1000,2500,5000,10000],
     "RedBlueDoors-8x8" : [1000,2000,5000,10000,20000],
+    "FourRooms" : [1000,2000,5000,10000,20000],
 }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
