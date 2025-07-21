@@ -20,7 +20,7 @@ def get_map_snaps(map_name):
     return default_snaps
 
 snap_dict = {
-    "MiniGrid-Empty-16x16-v0" : [125,250,625,1250,2500],
+    "MiniGrid-Empty-16x16-v0" : [250,500,1250,2500,5000],
     "MiniGrid-DoorKey-8x8-v0" : [500,1000,2500,5000,10000],
     "MiniGrid-RedBlueDoors-8x8-v0" : [500,1000,2500,5000,10000],
     "MiniGrid-FourRooms-v0" : [1250,2500,6250,12500,25000],
