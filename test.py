@@ -127,14 +127,16 @@ def test(config):
                 model.policy.eval()
 
                 while steps <= config.total_steps:
+                    if not(pic):
+                        img = env.render(mode="rgb_array")
+                        from PIL import Image
+                        im = Image.fromarray(img)
+                        fs = "" if config.fixed_seed == -1 else f"-fixed{config.fixed_seed}"
+                        im.save(f"{config.env_name}{fs}.png")
+                        pic = True
+
                     if config.render:
                         env.render(mode="human")
-                        if not(pic):
-                            img = env.render(mode="rgb_array")
-                            from PIL import Image
-                            im = Image.fromarray(img)
-                            im.save(f"{config.env_name}.png")
-                            pic = True
                         time.sleep(0.1)
                         
 
@@ -169,7 +171,7 @@ def test(config):
                     
                     # Log positions
                     for p in range(config.num_processes):
-                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1]) )
+                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1], rewards[p], dones[p]) )
 
                     obs = new_obs
                     iters += 1
@@ -177,7 +179,7 @@ def test(config):
                 
                 data[tech][snap][seed] = record
     
-    pos_df = pd.DataFrame.from_records(pos, columns=["im", "seed", "snapshot", "iterations", "n_env", "x", "y"])
+    pos_df = pd.DataFrame.from_records(pos, columns=["im", "seed", "snapshot", "iterations", "n_env", "x", "y", "reward", "done"])
     pos_df.to_csv(f"analysis/positions-{config.game_name}{'' if config.fixed_seed == -1 else '-fixed' + str(config.fixed_seed)}.csv")
 
 

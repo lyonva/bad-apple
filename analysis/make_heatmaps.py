@@ -22,10 +22,10 @@ map_dims = {
 }
 
 snap_dict = {
-    "Empty-16x16" : [125,250,625,1250,2500],
+    "Empty-16x16" : [250,500,1250,2500,5000],
     "DoorKey-8x8" : [500,1000,2500,5000,10000],
-    "RedBlueDoors-8x8" : [1000,2000,5000,10000,20000],
-    "FourRooms" : [1000,2000,5000,10000,20000],
+    "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
+    "FourRooms" : [1250,2500,6250,12500,25000],
 }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
@@ -37,8 +37,10 @@ def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
     sns.heatmap(data, square=True, cbar=False, vmin=np.log10(vmin+0.0001), vmax=np.log10(vmax), **kwargs)
 
 def draw_heatmap(data, **kwargs):
+    reward = data.iloc[0]["reward"]
     data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
-    sns.heatmap(data, square=True, cbar=False, **kwargs)
+    ax = sns.heatmap(data, square=True, cbar=False, **kwargs)
+    ax.text(3,len(data)-1, f"{reward:3.5f}", fontsize=16, color="white", ha="center", va="center")
 
 
 def draw_diff_heatmap(data, **kwargs):
@@ -59,8 +61,10 @@ def make_heatmaps(file, baseline):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
-    im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
-    im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
+    # im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
+    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
+    im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
 
@@ -73,7 +77,8 @@ def make_heatmaps(file, baseline):
     # sn_name = ["10%", "100%"]
     
     
-    map = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed[\d+])?.csv', file).group(1)
+    map = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed[\d]+)?.csv', file).group(1)
+    seed  = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed([\d]+))?.csv', file).group(4)
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
     ims = im_name
@@ -95,17 +100,19 @@ def make_heatmaps(file, baseline):
             sub_df = df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["x","y"]]
             counts = sub_df.value_counts() / sub_df.shape[0]
             sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
-            big_map.append( (snapshot, im, sum_df) )
+            avg_rew = np.mean( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) & (df["done"] == True) ][["reward"]] )
+            big_map.append( (snapshot, im, sum_df, avg_rew) )
 
     # Heatmap
     sns.set(font_scale=1.5)
-    big_map = pd.DataFrame(big_map, columns=["snapshot", "im", "data"])
+    big_map = pd.DataFrame(big_map, columns=["snapshot", "im", "data", "reward"])
     g = sns.FacetGrid(big_map, col="im", row="snapshot", margin_titles=True)
     superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=0, vmax=max_v)
     g.set_titles(col_template="{col_name}", row_template="Training: {row_name}")
     for (row_val, col_val), ax in g.axes_dict.items():
         ax.set_axis_off()
-    superheat.figure.savefig(f"heat-{map}.png")
+    seed = "" if seed is None else f"-fixed{seed}"
+    superheat.figure.savefig(f"heat-{map}{seed}.png")
     # plt.show()
 
     # Diff heatmap
@@ -125,7 +132,7 @@ def make_heatmaps(file, baseline):
     g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
     for (row_val, col_val), ax in g.axes_dict.items():
         ax.set_axis_off()
-    superheat.figure.savefig(f"diff-{map}.png")
+    superheat.figure.savefig(f"diff-{map}{seed}.png")
     # plt.show()
 
 

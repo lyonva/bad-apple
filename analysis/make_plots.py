@@ -4,6 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
+ticks_dict = {
+    "Empty-16x16" : [0,1000,2000,3000,4000,5000],
+    "DoorKey-8x8" : [0,2000,4000,6000,8000,10000],
+    "RedBlueDoors-8x8" : [0,2000,4000,6000,8000,10000],
+    "FourRooms" : [0,5000,10000,15000,20000,25000],
+}
+
 def make_plots(file):
     # sns.set_theme(style="darkgrid")
     sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
@@ -13,8 +20,10 @@ def make_plots(file):
     # im_name = ["No IM", "State Count", "GRM"]
     # im = ["nomodel", "statecount", "maxentropy", "icm", "rnd", "grm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
-    im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
-    im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
+    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
+    im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
@@ -47,11 +56,12 @@ def make_plots(file):
     #              ["No IM", "Max Entropy", "GRM+ME", "ADOPES+ME"],
     #              ["No IM", "ICM", "GRM+ICM", "ADOPES+ICM"]
     # ]
-    sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
-                 ["No IM", "State Count", "GRM+SC"],
-                 ["No IM", "Max Entropy", "GRM+ME"],
-                 ["No IM", "ICM", "GRM+ICM"]
-    ]
+    # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
+    #              ["No IM", "State Count", "GRM+SC"],
+    #              ["No IM", "Max Entropy", "GRM+ME"],
+    #              ["No IM", "ICM", "GRM+ICM"]
+    # ]
+    sub_plots = [["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]]
 
     for i, sub_plot in enumerate(sub_plots):
         sub_df = df[ np.isin(df["im"], sub_plot) ]
@@ -61,14 +71,19 @@ def make_plots(file):
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
         g.set_axis_labels("", "")
         for (row_val, col_val), ax in g.axes_dict.items():
-            ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
-            ax.set_xticks([0, 200, 400, 600, 800, 1000])
+            # ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
+            # ax.set_xticks([0, 200, 400, 600, 800, 1000])
             if col_val == "Entropy":
-                ax.set_ylim((0,2))
-                ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
+                # ax.set_ylim((0,2))
+                # ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
+                ax.set_ylim((0, 0.8))
+                ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8])
             else:
-                ax.set_ylim((0,1))
-                ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+                # ax.set_ylim((0,1))
+                # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+                ax.set_ylim((0.4,1))
+                ax.set_yticks([0.4, 0.55, 0.7, 0.85, 1.0])
+            ax.set_xticks(ticks_dict[row_val])
         g.add_legend(ncol=len(sub_plot))
         g.tight_layout()
         plt.show()
