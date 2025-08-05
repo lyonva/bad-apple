@@ -30,7 +30,7 @@ def display_runs_converge(file):
 
     maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms"]
     maps_length = [5000, 10000, 10000, 25000]
-    map_threshold = [0.96, 0.96, 0.57, 0.9, 0.9]
+    map_threshold = [0.96, 0.96, 0.97, 0.7]
 
     # Iteration to percentage
     df["iterations"] = df["iterations"].astype(np.float64)
