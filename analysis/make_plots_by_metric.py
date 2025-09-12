@@ -49,7 +49,7 @@ def make_plots(file):
         #         print( df.loc[(df["map"] == map) & (df["metric"] == metric) & (df["iterations"] == 1221), ["im", "value"]].groupby("im").mean()  )
 
         # df = df[df["iterations"] <= 10] # Speed up for testing
-        # df = df[df["iterations"] % 100 == 1 ] # Speed up for testing
+        # df = df[df["iterations"] % 250 == 1 ] # Speed up for testing
 
         # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
         #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
@@ -76,19 +76,22 @@ def make_plots(file):
             sub_df = att_df[ np.isin(att_df["im"], sub) ].copy()
             sub_df["group"] = name
             ultra_frame = pd.concat([ultra_frame, sub_df])
-
+        
         g = sns.FacetGrid(ultra_frame, row="group", col="map", col_order=maps, sharex=False, sharey=False,
                         margin_titles=True, legend_out=True, despine=False, height=2.5, aspect=1.8)
         g.map_dataframe(sns.lineplot, x="iterations", y=att, hue="im", hue_order=pal_order, palette=pal)
-        g.set_titles(row_template="{row_name}", col_template="{col_name}")
-        g.set_axis_labels("")
+        g.set_titles(row_template="{row_name}", col_template="{col_name}", size=20)
+        g.set_axis_labels("", "")
         for (row_val), ax in g.axes_dict.items():
             # ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
             ax.set_xticks([0, 200, 400, 600, 800, 1000])
+            ax.set_xticklabels(["0", "200", "400", "600", "800", "1000"], size=15)
             ax.set_ylim((0,1))
             ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+            ax.set_yticklabels(["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"], size=15)
             # ax.move_legend(ax, )
-        g.add_legend(ncol=len(pal_order))
+        # g.ax.tick_params(labelsize=5)
+        g.add_legend(ncol=len(pal_order), fontsize=20)
         g.tight_layout()
         plt.show()
         g.savefig(f"{att}.png", dpi=300)

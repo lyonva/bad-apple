@@ -52,7 +52,7 @@ def make_plots(file):
                  ["No IM", "Max Entropy", "GRM+ME"],
                  ["No IM", "ICM", "GRM+ICM"]
     ]
-
+    
     for i, sub_plot in enumerate(sub_plots):
         sub_df = df[ np.isin(df["im"], sub_plot) ]
         g = sns.FacetGrid(sub_df, row="map", col="metric", row_order=maps, col_order=atts_name, sharex=False, sharey=False,

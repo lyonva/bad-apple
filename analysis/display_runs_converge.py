@@ -25,7 +25,7 @@ def display_runs_converge(file):
     atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
     # df = df.astype({"Position Coverage" : "float32", "Observation Coverage" : "float32"})
-    df = df[df["iterations"] > 850] # Only last 100 or so iters
+    df = df[df["iterations"] > 900] # Only last 100 or so iters
 
     maps = ["DoorKey-8x8", "Empty-16x16", "FourRooms", "RedBlueDoors-8x8", "DoorKey-16x16"]
     map_threshold = [0.96, 0.96, 0.57, 0.9, 0.9]
@@ -34,7 +34,7 @@ def display_runs_converge(file):
     max_seed = 10
     
     for map, thres in zip(maps, map_threshold):
-        print(f"{map:35}" + "|".join( [ f"{s:4d}" for s in range(min_seed, max_seed+1) ] ) + f"| avg")
+        print(f"{map:35}" + "|".join( [ f"{s:6d}" for s in range(min_seed, max_seed+1) ] ) + f"|   avg")
         for im in im_name:
             avgs = []
             count = 0
@@ -42,7 +42,7 @@ def display_runs_converge(file):
                 avg = df.loc[(df["map"]==map) & (df["im"]==im) & (df["seed"]==seed), "Episode Reward"].mean()
                 if avg >= thres: count += 1
                 avgs.append(avg)
-            print(f"{im:35}" + "|".join( [ f"{a:1.2f}" for a in avgs ]) + f"|{np.mean(avgs):1.2f}" + f"\t({count}/{max_seed-min_seed+1})" )
+            print(f"{im:35}" + "|".join( [ f"{a:1.4f}" for a in avgs ]) + f"|{np.mean(avgs):1.4f}" + f"\t({count}/{max_seed-min_seed+1})" )
         print()
     
 
