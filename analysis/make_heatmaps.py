@@ -19,6 +19,8 @@ map_dims = {
     "DoorKey-16x16" : (16, 16, 0.025, 0.0125),
     "RedBlueDoors-8x8" : (16, 8, 0.1, 0.05),
     "FourRooms" : (19, 19, 0.01, 0.02),
+    "LavaCrossingS11N5" : (11, 11, 0.05, 0.025),
+    "MultiRoom-N4-S5" : (25, 25, 0.025, 0.0125),
 }
 
 snap_dict = {
@@ -26,6 +28,8 @@ snap_dict = {
     "DoorKey-8x8" : [500,1000,2500,5000,10000],
     "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
     "FourRooms" : [1250,2500,6250,12500,25000],
+    "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
+    "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
 }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
@@ -77,8 +81,8 @@ def make_heatmaps(file, baseline):
     # sn_name = ["10%", "100%"]
     
     
-    map = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed[\d]+)?.csv', file).group(1)
-    seed  = re.search(r'positions-([A-Za-z]+(\-\d+x\d+)?)(\-fixed([\d]+))?.csv', file).group(4)
+    map = re.search(r'positions-([A-Za-z0-9]+(\-\d+x\d+)?(\-\w\d)+)(\-fixed[\d]+)?.csv', file).group(1)
+    seed  = re.search(r'positions-([A-Za-z0-9]+(\-\d+x\d+)?(\-\w\d)+)(\-fixed([\d]+))?.csv', file).group(4)
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
     ims = im_name

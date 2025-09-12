@@ -28,9 +28,9 @@ def display_runs_converge(file):
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
     # df = df.astype({"Position Coverage" : "float32", "Observation Coverage" : "float32"})
 
-    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms"]
-    maps_length = [5000, 10000, 10000, 25000]
-    map_threshold = [0.96, 0.96, 0.97, 0.7]
+    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    maps_length = [5000, 10000, 10000, 25000, 10000, 10000]
+    map_threshold = [0.96, 0.96, 0.97, 0.7, 0.95, 0.7]
 
     # Iteration to percentage
     df["iterations"] = df["iterations"].astype(np.float64)

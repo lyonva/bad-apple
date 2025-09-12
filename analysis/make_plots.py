@@ -9,6 +9,8 @@ ticks_dict = {
     "DoorKey-8x8" : [0,2000,4000,6000,8000,10000],
     "RedBlueDoors-8x8" : [0,2000,4000,6000,8000,10000],
     "FourRooms" : [0,5000,10000,15000,20000,25000],
+    "LavaCrossingS11N5" : [0,2000,4000,6000,8000,10000],
+    "MultiRoom-N4-S5" : [0,2000,4000,6000,8000,10000],
 }
 
 def make_plots(file):
@@ -33,7 +35,7 @@ def make_plots(file):
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
 
     # maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
-    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms"]
+    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
 
     df = df[["im", "iterations", "map"] + atts_name].set_index(["im", "iterations", "map"]).stack(future_stack=True).reset_index()
     df.columns = ["im", "iterations", "map", "metric", "value"]
@@ -49,7 +51,7 @@ def make_plots(file):
     #         print( df.loc[(df["map"] == map) & (df["metric"] == metric) & (df["iterations"] == 1221), ["im", "value"]].groupby("im").mean()  )
 
     # df = df[df["iterations"] <= 10] # Speed up for testing
-    # df = df[df["iterations"] % 100 == 1 ] # Speed up for testing
+    df = df[df["iterations"] % 200 == 1 ] # Speed up for testing
 
     # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
     #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
@@ -76,8 +78,8 @@ def make_plots(file):
             if col_val == "Entropy":
                 # ax.set_ylim((0,2))
                 # ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
-                ax.set_ylim((0, 0.8))
-                ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8])
+                ax.set_ylim((0, 0.4))
+                ax.set_yticks([0.0, 0.1, 0.2, 0.3, 0.4])
             else:
                 # ax.set_ylim((0,1))
                 # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
