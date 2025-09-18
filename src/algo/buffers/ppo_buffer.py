@@ -78,6 +78,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.float32)
         self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.intrinsic_rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.costs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.ext_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.int_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.episode_starts = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
@@ -175,6 +176,7 @@ class PPORolloutBuffer(BaseBuffer):
         action: np.ndarray,
         reward: np.ndarray,
         intrinsic_reward: np.ndarray,
+        cost: np.ndarray,
         episode_start: np.ndarray,
         episode_done: np.ndarray,
         ext_value: th.Tensor,
@@ -201,6 +203,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.actions[self.pos] = np.array(action).copy()
         self.rewards[self.pos] = np.array(reward).copy()
         self.intrinsic_rewards[self.pos] = np.array(intrinsic_reward).copy()
+        self.costs[self.pos] = np.array(cost).copy()
         self.episode_starts[self.pos] = np.array(episode_start).copy()
         self.episode_dones[self.pos] = np.array(episode_done).copy()
         self.ext_values[self.pos] = ext_value.clone().cpu().numpy().flatten()
@@ -234,6 +237,7 @@ class PPORolloutBuffer(BaseBuffer):
                 "int_advantages",
                 "ext_returns",
                 "int_returns",
+                "costs",
             ]
             if self.use_status_predictor:
                 _tensor_names += [
@@ -277,6 +281,7 @@ class PPORolloutBuffer(BaseBuffer):
             self.int_advantages[batch_inds].flatten(),
             self.ext_returns[batch_inds].flatten(),
             self.int_returns[batch_inds].flatten(),
+            self.costs[batch_inds].flatten(),
         )
         if self.use_status_predictor:
             data += (

@@ -24,25 +24,32 @@ def make_plots(file):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
-    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
-    im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
+    # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
+    # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
+    im = ["nors+statecount", "nors+statecount+cir"]
+    im_name = ["State Count", "State Count CIR"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
 
-    atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:"]
-    atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
+    # atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:"]
+    # atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
+    atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ep_entropy", "rollout/ll_cost_count"]
+    atts_name = ["Episode Reward", "Position Coverage", "Entropy", "Total Constraint Violations"]
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
+    
 
     # maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
-    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    # maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    maps = ["Empty-16x16", "LavaCrossingS11N5"]
 
     df = df[["im", "iterations", "map"] + atts_name].set_index(["im", "iterations", "map"]).stack(future_stack=True).reset_index()
     df.columns = ["im", "iterations", "map", "metric", "value"]
 
     # Make Position/State coverage relative to map
     for map in maps:
-        for metric in ["Position Coverage", "Observation Coverage"]:
+        # for metric in ["Position Coverage", "Observation Coverage"]:
+        for metric in ["Position Coverage"]:
             df.loc[(df["map"] == map) & (df["metric"] == metric), "value"] /= df[(df["map"] == map) & (df["metric"] == metric)]["value"].max()
 
     # for map in maps_name:
@@ -63,7 +70,8 @@ def make_plots(file):
     #              ["No IM", "Max Entropy", "GRM+ME"],
     #              ["No IM", "ICM", "GRM+ICM"]
     # ]
-    sub_plots = [["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]]
+    # sub_plots = [["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]]
+    sub_plots = [im_name.copy()]
 
     for i, sub_plot in enumerate(sub_plots):
         sub_df = df[ np.isin(df["im"], sub_plot) ]
@@ -80,6 +88,8 @@ def make_plots(file):
                 # ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
                 ax.set_ylim((0, 0.4))
                 ax.set_yticks([0.0, 0.1, 0.2, 0.3, 0.4])
+            elif col_val == "Total Constraint Violations":
+                pass
             else:
                 # ax.set_ylim((0,1))
                 # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])

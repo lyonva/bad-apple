@@ -5,6 +5,7 @@ import torch as th
 import wandb
 from torch import nn
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
+from src.env.safety_constraints import MiniGridSafetyCostWrapper
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import VecMonitor
@@ -78,16 +79,20 @@ class TrainingConfig():
             self.wandb_run.finish()
 
     def get_wrapper_class(self):
+        constraint_list = []
+        if self.collision_cost: constraint_list.append('collision')
+        if self.termination_cost: constraint_list.append('unsuccessful_termination')
+
         if self.env_source == EnvSrc.MiniGrid:
             if self.fully_obs:
-                wrapper_class = lambda x: ImgObsWrapper(FullyObsWrapper(x))
+                wrapper_class = lambda x: ImgObsWrapper(FullyObsWrapper(x)) # TODO make it so the safety wrapper works with fully obs
             else:
-                wrapper_class = lambda x: ImgObsWrapper(x)
+                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(x), constraint_list)
 
             if self.fixed_seed >= 0 and self.env_source == EnvSrc.MiniGrid:
                 assert not self.fully_obs
                 _seeds = [self.fixed_seed]
-                wrapper_class = lambda x: ImgObsWrapper(ReseedWrapper(x, seeds=_seeds))
+                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), constraint_list)
             return wrapper_class
         return None
 
@@ -99,6 +104,7 @@ class TrainingConfig():
                 vec_env_cls=CustomSubprocVecEnv,
                 n_envs=self.num_processes,
                 monitor_dir=self.log_dir,
+                env_kwargs={"max_steps":self.max_episode_steps},
             )
         else:
             raise NotImplementedError

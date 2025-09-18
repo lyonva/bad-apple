@@ -17,6 +17,7 @@ class RolloutBufferSamples(NamedTuple):
     int_advantages: th.Tensor
     ext_returns: th.Tensor
     int_returns: th.Tensor
+    costs: th.Tensor
     curr_key_status: Optional[th.Tensor]
     curr_door_status: Optional[th.Tensor]
     curr_target_dists: Optional[th.Tensor]

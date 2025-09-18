@@ -114,6 +114,8 @@ def train(config):
         int_shape_source=config.int_shape_source,
         grm_delay=config.grm_delay,
         adopes_coef_inc=config.adopes_coef_inc,
+        pies_decay=config.pies_decay,
+        cost_as_ir=config.cost_as_ir,
         policy_kwargs=policy_kwargs,
         env_source=config.env_source,
         env_render=config.env_render,
@@ -162,6 +164,7 @@ def train(config):
 @click.option('--image_noise_scale', default=0.0, type=float, help='Standard deviation of the Gaussian noise')
 @click.option('--log_explored_states', default=1, type=int, help='Whether to log the number of explored states')
 @click.option('--fixed_seed', default=-1, type=int, help='Whether to use a fixed env seed (MiniGrid)')
+@click.option('--max_episode_steps', default=None, type=int, help='Maximum number of steps in an episode before a reset is forced.')
 # Algo params
 @click.option('--n_epochs', default=4, type=int, help='Number of epochs to train policy and value nets')
 @click.option('--model_n_epochs', default=4, type=int, help='Number of epochs to train common_models')
@@ -212,6 +215,10 @@ def train(config):
               help='Scale coefficient increase per-rollout that affects F2 shaping. Set to 1 for ADOPS (No scaling F2).')
 @click.option('--pies_decay', default=2500, type=int,
               help='PIES decay coefficient. PIES coefficient starts at 1, and decays by 1/C per rollout until 0 is reached.')
+# Safe RL parameters
+@click.option('--cost_as_ir', type=int, default=0, help='Whether to use cost as a negative intrinsic reward, which overrides normal IM if non-zero.')
+@click.option('--collision_cost', type=int, default=1, help='Whether to add a safety cost for crashing against walls, doors, or objects.')
+@click.option('--termination_cost', type=int, default=1, help='Whether to add a safety cost when an episode is terminated with no reward (not truncated/timeout). e.x. when the agent dies or makes a mistake.')
 # Network params
 @click.option('--use_model_rnn', default=1, type=int, help='Whether to enable RNNs for the dynamics model')
 @click.option('--latents_dim', default=256, type=int, help='Dimensions of latent features in policy/value nets\' MLPs')
@@ -255,11 +262,11 @@ def train(config):
 def main(
     run_id, use_wandb, group_name, log_dir, model_dir, total_steps, features_dim, model_features_dim, learning_rate, model_learning_rate,
     num_processes, batch_size, n_steps, env_source, game_name, project_name, map_size, can_see_walls, fully_obs,
-    image_noise_scale, log_explored_states, fixed_seed, n_epochs, model_n_epochs,
+    image_noise_scale, log_explored_states, fixed_seed, max_episode_steps, n_epochs, model_n_epochs,
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
     adv_momentum, adv_ext_coeff, adv_int_coeff, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
-    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_coef_inc, pies_decay, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
+    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_coef_inc, pies_decay, cost_as_ir, collision_cost, termination_cost, use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,
     rmsprop_alpha, rmsprop_momentum, write_local_logs, enable_plotting, plot_interval, plot_colormap, model_recs, record_video,

@@ -12,6 +12,7 @@ from src.algo.buffers.ppo_buffer import PPORolloutBuffer
 from src.utils.loggers import StatisticsLogger, LocalLogger
 from src.utils.common_func import set_random_seed
 from src.utils.enum_types import ModelType, EnvSrc, ShapeType
+from src.env.subproc_vec_env import CustomVecTranspose
 
 from src.algo.reward_shaping.grm import GRM
 from src.algo.reward_shaping.adopes import ADOPES
@@ -22,10 +23,15 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy, BasePolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor, safe_mean
-from stable_baselines3.common.vec_env import VecEnv
+from stable_baselines3.common.vec_env import VecEnv, is_vecenv_wrapped
+from stable_baselines3.common.env_util import is_wrapped
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.preprocessing import check_for_nested_spaces, is_image_space, is_image_space_channels_first
+from gymnasium import spaces
 
 from typing import Any, Dict, Optional, Tuple, Type, Union
 
+from stable_baselines3.common.vec_env.patch_gym import _convert_space, _patch_env
 
 class PPORollout(BaseAlgorithm):
 
@@ -62,6 +68,7 @@ class PPORollout(BaseAlgorithm):
         grm_delay : int,
         adopes_coef_inc : float,
         pies_decay : int,
+        cost_as_ir : int,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
@@ -116,6 +123,7 @@ class PPORollout(BaseAlgorithm):
         self.grm_delay = grm_delay
         self.adopes_coef_inc = adopes_coef_inc
         self.pies_decay = pies_decay
+        self.cost_as_ir = cost_as_ir
         self.env_source = env_source
         self.env_render = env_render
         self.fixed_seed = fixed_seed
@@ -136,11 +144,59 @@ class PPORollout(BaseAlgorithm):
         elif self.int_shape_source == ShapeType.GRM:
             self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
         elif self.int_shape_source == ShapeType.ADOPES:
-            self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=adopes_coef_inc)
+            self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=1.0/self.pies_decay)
         elif self.int_shape_source == ShapeType.PIES:
             self.int_shape_model = PIES(self.gamma, self.n_envs, pies_decay)
         else:
             raise TypeError
+    
+    @staticmethod
+    def _wrap_env(env: GymEnv, verbose: int = 0, monitor_wrapper: bool = True) -> VecEnv:
+        """ "
+        Wrap environment with the appropriate wrappers if needed.
+        For instance, to have a vectorized environment
+        or to re-order the image channels.
+
+        :param env:
+        :param verbose: Verbosity level: 0 for no output, 1 for indicating wrappers used
+        :param monitor_wrapper: Whether to wrap the env in a ``Monitor`` when possible.
+        :return: The wrapped environment.
+        """
+        if not isinstance(env, VecEnv):
+            # Patch to support gym 0.21/0.26 and gymnasium
+            env = _patch_env(env)
+            if not is_wrapped(env, Monitor) and monitor_wrapper:
+                if verbose >= 1:
+                    print("Wrapping the env with a `Monitor` wrapper")
+                env = Monitor(env)
+            if verbose >= 1:
+                print("Wrapping the env in a DummyVecEnv.")
+            env = DummyVecEnv([lambda: env])  # type: ignore[list-item, return-value]
+
+        # Make sure that dict-spaces are not nested (not supported)
+        check_for_nested_spaces(env.observation_space)
+
+        if not is_vecenv_wrapped(env, CustomVecTranspose):
+            wrap_with_vectranspose = False
+            if isinstance(env.observation_space, spaces.Dict):
+                # If even one of the keys is a image-space in need of transpose, apply transpose
+                # If the image spaces are not consistent (for instance one is channel first,
+                # the other channel last), VecTransposeImage will throw an error
+                for space in env.observation_space.spaces.values():
+                    wrap_with_vectranspose = wrap_with_vectranspose or (
+                        is_image_space(space) and not is_image_space_channels_first(space)  # type: ignore[arg-type]
+                    )
+            else:
+                wrap_with_vectranspose = is_image_space(env.observation_space) and not is_image_space_channels_first(
+                    env.observation_space  # type: ignore[arg-type]
+                )
+
+            if wrap_with_vectranspose:
+                if verbose >= 1:
+                    print("Wrapping the env in a VecTransposeImage.")
+                env = CustomVecTranspose(env)
+
+        return env
 
     def _setup_model(self) -> None:
         self._setup_lr_schedule()
@@ -213,6 +269,7 @@ class PPORollout(BaseAlgorithm):
 
         self.global_episode_rewards = np.zeros(self.n_envs, dtype=np.float32)
         self.global_episode_intrinsic_rewards = np.zeros(self.n_envs, dtype=np.float32)
+        self.global_episode_costs = np.zeros(self.n_envs, dtype=np.float32)
 
         self.global_episode_unique_states = np.zeros(self.n_envs, dtype=np.float32)
         self.global_episode_visited_states = [dict() for _ in range(self.n_envs)]
@@ -225,6 +282,7 @@ class PPORollout(BaseAlgorithm):
         self.global_lifelong_visited_pos_sum = np.zeros(self.n_envs, dtype=np.float32)
         
         self.global_lifelong_total_rewards = 0
+        self.global_lifelong_total_costs = 0
 
         self.global_episode_steps = np.zeros(self.n_envs, dtype=np.int32)
         if self.policy.use_status_predictor:
@@ -259,6 +317,7 @@ class PPORollout(BaseAlgorithm):
         self.rollout_done_episodes = 0
         self.rollout_done_episode_steps = 0
         self.rollout_sum_rewards = 0
+        self.rollout_sum_costs = 0
         self.rollout_episode_unique_states = 0
         self.rollout_done_episode_unique_states = 0
 
@@ -325,14 +384,19 @@ class PPORollout(BaseAlgorithm):
                 self.curr_target_dists = np.stack([key_dists, door_dists, goal_dists], axis=1)
 
 
-    def log_after_transition(self, rewards, intrinsic_rewards):
+    def log_after_transition(self, rewards, intrinsic_rewards, costs):
         self.global_episode_rewards += rewards
         self.global_episode_intrinsic_rewards += intrinsic_rewards
+        self.global_episode_costs += costs
         self.global_episode_steps += 1
 
         for r in rewards:
             if r > 0:
                 self.global_lifelong_total_rewards += 1
+        
+        for c in costs:
+            if c > 0:
+                self.global_lifelong_total_costs += 1
 
         # Logging episodic/lifelong visited states, reward map
         if self.log_explored_states:
@@ -410,11 +474,13 @@ class PPORollout(BaseAlgorithm):
                 self.episodic_obs_emb_history[env_id] = None
                 self.episodic_trj_emb_history[env_id] = None
                 self.rollout_sum_rewards += self.global_episode_rewards[env_id]
+                self.rollout_sum_costs += self.global_episode_costs[env_id]
                 self.rollout_done_episode_steps += self.global_episode_steps[env_id]
                 self.rollout_done_episode_unique_states += self.global_episode_unique_states[env_id]
                 self.rollout_done_episodes += 1
                 self.global_episode_rewards[env_id] = 0
                 self.global_episode_intrinsic_rewards[env_id] = 0
+                self.global_episode_costs[env_id] = 0
                 self.global_episode_unique_states[env_id] = 0
                 self.global_episode_visited_states[env_id] = dict()  # logging use
                 self.global_episode_visited_positions[env_id] = dict()  # logging use
@@ -435,9 +501,11 @@ class PPORollout(BaseAlgorithm):
                 "time/time_elapsed": int(time.time() - self.start_time),
                 "time/total_timesteps": self.num_timesteps,
                 "rollout/ep_rew_mean": self.rollout_sum_rewards / (self.rollout_done_episodes + 1e-8),
+                "rollout/ep_cost_mean": self.rollout_sum_costs / (self.rollout_done_episodes + 1e-8),
                 "rollout/ep_len_mean": self.rollout_done_episode_steps / (self.rollout_done_episodes + 1e-8),
                 "rollout/ll_rew_count" : self.global_lifelong_total_rewards,
-                "rollout/ep_entropy:" : np.mean(self.ppo_rollout_buffer.entropy),
+                "rollout/ll_cost_count" : self.global_lifelong_total_costs,
+                "rollout/ep_entropy" : np.mean(self.ppo_rollout_buffer.entropy),
                 # unique states / positions
                 "rollout/ep_unique_states": self.rollout_done_episode_unique_states / (
                             self.rollout_done_episodes + 1e-8),
@@ -744,7 +812,7 @@ class PPORollout(BaseAlgorithm):
             self.log_before_transition(ext_values, int_values)
 
             # Transition
-            new_obs, rewards, dones, infos = env.step(clipped_actions)
+            new_obs, rewards, costs, dones, infos = env.step(clipped_actions)
             if isinstance(new_obs, Dict):
                 new_obs = new_obs["rgb"]
             if self.env_render:
@@ -762,8 +830,14 @@ class PPORollout(BaseAlgorithm):
             # Intrinsic Reward Shaping
             intrinsic_rewards = self.shape_intrinsic_rewards(rewards, intrinsic_rewards, ext_values, int_values, new_ext_values, new_int_values, dones)
 
+            # If costs are used as intrinsic rewards, overwrite with negative costs
+            if self.cost_as_ir:
+                for idx in range(self.n_envs):
+                    if costs[idx] > 0:
+                        intrinsic_rewards[idx] = -costs[idx]
+
             # Log after the transition and IR generation
-            self.log_after_transition(rewards, intrinsic_rewards)
+            self.log_after_transition(rewards, intrinsic_rewards, costs)
 
             # Clear episodic memories when an episode ends
             self.clear_on_episode_end(dones, policy_mems, model_mems)
@@ -784,6 +858,7 @@ class PPORollout(BaseAlgorithm):
                 actions,
                 rewards,
                 intrinsic_rewards,
+                costs,
                 self._last_episode_starts,
                 dones,
                 ext_values,

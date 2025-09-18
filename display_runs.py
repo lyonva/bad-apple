@@ -84,6 +84,7 @@ for map in maps:
                         model_main = PPOTrainer.load( a_model_path, env=None )
                         im = ModelType.get_str_name(model_main.int_rew_source)
                         rs = ShapeType.get_str_name(model_main.int_shape_source)
+                        ci = model_main.cost_as_ir
                         id = model_main.run_id
                         model_loads = True
                     except:
@@ -99,7 +100,7 @@ for map in maps:
                 code = 1
             
             if code == 0:
-                complete_runs.append( [ map, rs, im, id, log, path_log, models_log ] )
+                complete_runs.append( [ map, rs, im, ci, id, log, path_log, models_log ] )
             else:
                 incomplete_runs.append( [log, code, path_log, models_log] )
 
@@ -109,7 +110,7 @@ for map in maps:
 
 print(f"Complete runs: {len(complete_runs)}")
 for run in complete_runs:
-    print(f"{run[0]:30s}\t{run[1]}+{run[2]}-{run[3]:2d}\t{run[4]}")
+    print(f"{run[0]:30s}\t{run[1]}+{run[2]}{'+cir' if run[3] else ''}-{run[4]:2d}\t{run[5]}")
 
 print(f"Incomplete runs: {len(incomplete_runs)}")
 for run in incomplete_runs:
@@ -153,10 +154,10 @@ if len(complete_runs) > 0:
         if not os.path.exists(archive_log_dir): os.mkdir(archive_log_dir)
 
         for run in complete_runs:
-            map, rs, im, id, log, path_log, models_log = run
+            map, rs, im, ci, id, log, path_log, models_log = run
 
             if not os.path.exists( os.path.join(archive_log_dir, map) ): os.mkdir( os.path.join(archive_log_dir, map) )
-            target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}-{id}" )
+            target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}{'+cir' if ci else ''}-{id}" )
 
             # Dir/Overwrite check
             if os.path.exists( target_dir ):

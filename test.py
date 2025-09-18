@@ -13,6 +13,7 @@ from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
 from stable_baselines3.common.env_util import make_vec_env
 from src.env.subproc_vec_env import CustomSubprocVecEnv
 from src.env.minigrid_envs import *
+from src.env.safety_constraints import MiniGridSafetyCostWrapper
 
 from src.algo.ppo_model import PPOModel
 from src.algo.ppo_trainer import PPOTrainer
@@ -39,16 +40,18 @@ class TestingRecord:
         self.new_obs = np.zeros((buffer_size, n_envs) + obs_shape, dtype=np.float32)
         self.ext_rewards = np.zeros((buffer_size, n_envs), dtype=np.float32)
         self.int_rewards = np.zeros((buffer_size, n_envs), dtype=np.float32)
+        self.costs = np.zeros((buffer_size, n_envs), dtype=np.float32)
         self.dones = np.zeros((buffer_size, n_envs), dtype=np.float32)
 
         self.positions = np.zeros((buffer_size, n_envs, 2), dtype=np.float32)
     
-    def add(self, iter, obs, actions, new_obs, ext_rewards, int_rewards, dones, positions):
+    def add(self, iter, obs, actions, new_obs, ext_rewards, int_rewards, costs, dones, positions):
         self.obs[iter] = np.array(obs).copy()
         self.actions[iter] = np.array(actions).copy()
         self.new_obs[iter] = np.array(new_obs).copy()
         self.ext_rewards[iter] = np.array(ext_rewards).copy()
         self.int_rewards[iter] = np.array(int_rewards).copy()
+        self.costs[iter] = np.array(costs).copy()
         self.dones[iter] = np.array(dones).copy()
         self.positions[iter] = np.array(positions).copy()
 
@@ -72,7 +75,7 @@ def test(config):
 
         for seed in seeds:
             env = make_vec_env(config.env_name,
-                               wrapper_class=lambda x: ImgObsWrapper(x),
+                               wrapper_class=lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(x), ['collision', 'termination']),
                                vec_env_cls=CustomSubprocVecEnv,
                                n_envs=config.num_processes,
                             )
@@ -145,7 +148,7 @@ def test(config):
                     actions = actions.cpu().numpy()
                     if isinstance(env.action_space, gym.spaces.Box):
                         actions = np.clip(actions, env.action_space.low, env.action_space.high)
-                    new_obs, rewards, dones, infos = env.step(actions)
+                    new_obs, rewards, costs, dones, infos = env.step(actions)
                     
 
                     intrinsic_rewards, model_mems = \
@@ -167,11 +170,11 @@ def test(config):
                     agent_positions = np.array(env.get_attr('agent_pos'))
                     
                     # Record
-                    record.add(iters, obs, actions.reshape(-1, 1), new_obs, rewards, intrinsic_rewards, dones, agent_positions)
+                    record.add(iters, obs, actions.reshape(-1, 1), new_obs, rewards, intrinsic_rewards, costs, dones, agent_positions)
                     
                     # Log positions
                     for p in range(config.num_processes):
-                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1], rewards[p], dones[p]) )
+                        pos.append( ( tech, seed, snap, iters, p, agent_positions[p][0], agent_positions[p][1], rewards[p], costs[p], dones[p]) )
 
                     obs = new_obs
                     iters += 1
@@ -179,7 +182,7 @@ def test(config):
                 
                 data[tech][snap][seed] = record
     
-    pos_df = pd.DataFrame.from_records(pos, columns=["im", "seed", "snapshot", "iterations", "n_env", "x", "y", "reward", "done"])
+    pos_df = pd.DataFrame.from_records(pos, columns=["im", "seed", "snapshot", "iterations", "n_env", "x", "y", "reward", "cost", "done"])
     pos_df.to_csv(f"analysis/positions-{config.game_name}{'' if config.fixed_seed == -1 else '-fixed' + str(config.fixed_seed)}.csv")
 
 
