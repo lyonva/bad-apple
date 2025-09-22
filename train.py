@@ -216,7 +216,7 @@ def train(config):
 @click.option('--pies_decay', default=2500, type=int,
               help='PIES decay coefficient. PIES coefficient starts at 1, and decays by 1/C per rollout until 0 is reached.')
 # Safe RL parameters
-@click.option('--cost_as_ir', type=int, default=0, help='Whether to use cost as a negative intrinsic reward, which overrides normal IM if non-zero.')
+@click.option('--cost_as_ir', type=int, default=0, help='Whether to use cost as a negative intrinsic reward, which overrides normal IM if non-zero. 0 = Cost is not used as IM. 1 = Overrides over reward shaping. 2 = Cost overrides IM, but it is reward shaped.')
 @click.option('--collision_cost', type=int, default=1, help='Whether to add a safety cost for crashing against walls, doors, or objects.')
 @click.option('--termination_cost', type=int, default=1, help='Whether to add a safety cost when an episode is terminated with no reward (not truncated/timeout). e.x. when the agent dies or makes a mistake.')
 # Network params

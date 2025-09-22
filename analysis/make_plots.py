@@ -26,8 +26,8 @@ def make_plots(file):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
     # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
-    im = ["nors+statecount", "nors+statecount+cir"]
-    im_name = ["State Count", "State Count CIR"]
+    im = ["nors+statecount", "nors+statecount+cir", "adopes+statecount+cir", "adopes+statecount+cirs"]
+    im_name = ["State Count", "State Count CIR", "SC+ADOPES+CIR", "SC+ADOPES+CIRS"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])

@@ -827,11 +827,18 @@ class PPORollout(BaseAlgorithm):
             intrinsic_rewards, model_mems = \
                 self.create_intrinsic_rewards(new_obs, actions, dones)
             
+            # If costs are used as intrinsic rewards, overwrite with negative costs
+            # But before reward shaping
+            if self.cost_as_ir == 2:
+                for idx in range(self.n_envs):
+                    if costs[idx] > 0:
+                        intrinsic_rewards[idx] = -costs[idx]
+            
             # Intrinsic Reward Shaping
             intrinsic_rewards = self.shape_intrinsic_rewards(rewards, intrinsic_rewards, ext_values, int_values, new_ext_values, new_int_values, dones)
 
             # If costs are used as intrinsic rewards, overwrite with negative costs
-            if self.cost_as_ir:
+            if self.cost_as_ir == 1:
                 for idx in range(self.n_envs):
                     if costs[idx] > 0:
                         intrinsic_rewards[idx] = -costs[idx]

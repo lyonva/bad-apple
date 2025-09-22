@@ -110,7 +110,8 @@ for map in maps:
 
 print(f"Complete runs: {len(complete_runs)}")
 for run in complete_runs:
-    print(f"{run[0]:30s}\t{run[1]}+{run[2]}{'+cir' if run[3] else ''}-{run[4]:2d}\t{run[5]}")
+    ciro = '+cir' if run[3] == 1 else '+cirs' if run[3] == 2 else ''
+    print(f"{run[0]:30s}\t{run[1]}+{run[2]}{ciro}-{run[4]:2d}\t{run[5]}")
 
 print(f"Incomplete runs: {len(incomplete_runs)}")
 for run in incomplete_runs:
@@ -157,7 +158,8 @@ if len(complete_runs) > 0:
             map, rs, im, ci, id, log, path_log, models_log = run
 
             if not os.path.exists( os.path.join(archive_log_dir, map) ): os.mkdir( os.path.join(archive_log_dir, map) )
-            target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}{'+cir' if ci else ''}-{id}" )
+            ciro = '+cir' if ci == 1 else '+cirs' if ci == 2 else ''
+            target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}{ciro}-{id}" )
 
             # Dir/Overwrite check
             if os.path.exists( target_dir ):

@@ -71,8 +71,8 @@ def make_heatmaps(file, baseline):
     # im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
     # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
-    im = ["nors+statecount", "nors+statecount+cir"]
-    im_name = ["State Count", "SC+CIR"]
+    im = ["nors+statecount", "nors+statecount+cir", "adopes+statecount+cir", "adopes+statecount+cirs"]
+    im_name = ["State Count", "State Count CIR", "SC+ADOPES+CIR", "SC+ADOPES+CIRS"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
 
