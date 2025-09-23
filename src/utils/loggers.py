@@ -64,5 +64,4 @@ class LocalLogger(object):
         log_path = os.path.join(self.path, name + '.pkl')
         with open(log_path, 'wb+') as f:
             pickle.dump(d, f)
-            print(log_path)
         return log_path
