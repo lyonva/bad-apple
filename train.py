@@ -282,6 +282,7 @@ def main(
     config.init_meta_info()
     config.init_logger()
     config.init_values()
+    config.log_params(dict(args))
 
     train(config)
 

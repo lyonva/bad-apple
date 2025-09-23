@@ -219,6 +219,8 @@ class TrainingConfig():
             model_features_extractor_common_kwargs
 
 
-
+    def log_params(self, args):
+        if self.write_local_logs:
+            self.local_logger.write_dict(args, 'params')
 
 

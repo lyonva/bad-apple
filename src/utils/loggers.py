@@ -2,7 +2,7 @@ import os
 import numpy as np
 from typing import Any
 from torch import Tensor
-
+import pickle
 
 class StatisticsLogger:
 
@@ -58,4 +58,11 @@ class LocalLogger(object):
     def write_model(self, model, name: str):
         log_path = os.path.join(self.model_path, name + '.zip')
         model.save(log_path)
+        return log_path
+    
+    def write_dict(self, d:dict, name: str):
+        log_path = os.path.join(self.path, name + '.pkl')
+        with open(log_path, 'wb+') as f:
+            pickle.dump(d, f)
+            print(log_path)
         return log_path
