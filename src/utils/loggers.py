@@ -34,9 +34,8 @@ class StatisticsLogger:
 
 class LocalLogger(object):
 
-    def __init__(self, path: str, model_path : str):
+    def __init__(self, path: str):
         self.path = path
-        self.model_path = model_path
         self.created = set()
 
     def write(self, log_data: dict, log_type: str):
@@ -56,7 +55,7 @@ class LocalLogger(object):
         log_file.close()
     
     def write_model(self, model, name: str):
-        log_path = os.path.join(self.model_path, name + '.zip')
+        log_path = os.path.join(self.path, name + '.zip')
         model.save(log_path)
         return log_path
     

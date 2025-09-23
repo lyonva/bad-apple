@@ -59,11 +59,9 @@ class TrainingConfig():
             self.wandb_run = None
 
         self.log_dir = os.path.join(self.log_dir, self.env_name, self.start_datetime, str(self.run_id))
-        self.model_dir = os.path.join(self.model_dir, self.env_name, self.start_datetime, str(self.run_id))
         os.makedirs(self.log_dir, exist_ok=True)
-        os.makedirs(self.model_dir, exist_ok=True)
         if self.write_local_logs:
-            self.local_logger = LocalLogger(self.log_dir, self.model_dir)
+            self.local_logger = LocalLogger(self.log_dir)
             print(f'Writing local logs at {self.log_dir}')
         else:
             self.local_logger = None
