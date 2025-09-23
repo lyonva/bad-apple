@@ -79,20 +79,16 @@ class TrainingConfig():
             self.wandb_run.finish()
 
     def get_wrapper_class(self):
-        constraint_list = []
-        if self.collision_cost: constraint_list.append('collision')
-        if self.termination_cost: constraint_list.append('unsuccessful_termination')
-
         if self.env_source == EnvSrc.MiniGrid:
             if self.fully_obs:
                 wrapper_class = lambda x: ImgObsWrapper(FullyObsWrapper(x)) # TODO make it so the safety wrapper works with fully obs
             else:
-                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(x), constraint_list)
+                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(x), self.enable_cost, self.collision_cost, self.termination_cost)
 
             if self.fixed_seed >= 0 and self.env_source == EnvSrc.MiniGrid:
                 assert not self.fully_obs
                 _seeds = [self.fixed_seed]
-                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), constraint_list)
+                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), self.enable_cost, self.collision_cost, self.termination_cost)
             return wrapper_class
         return None
 
