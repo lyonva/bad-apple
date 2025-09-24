@@ -157,8 +157,10 @@ if len(complete_runs) > 0:
 
             if not os.path.exists( os.path.join(archive_log_dir, map) ): os.mkdir( os.path.join(archive_log_dir, map) )
             ciro = '+cir' if ci == 1 else '+cirs' if ci == 2 else ''
-            pps = '' if len(parameters) > 0 else '+' + '+'.join([f'{k}{v}' for k, v in pp.items()])
+            pps = '' if len(parameters) == 0 else '+' + '+'.join([f'{k}{v}' for k, v in pp.items()])
             target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}{ciro}{pps}-{id}" )
+            print(target_dir)
+            exit()
 
             # Dir/Overwrite check
             if os.path.exists( target_dir ):
