@@ -84,7 +84,8 @@ for map in maps:
                             ci = loaded_params["cost_as_ir"]
                             pp = {}
                             for param in parameters:
-                                pp[param] = loaded_params[param]
+                                if param in loaded_params.keys():
+                                    pp[param] = loaded_params[param]
                             id = loaded_params["run_id"]
                             params_load = True
                         # except:
@@ -159,8 +160,6 @@ if len(complete_runs) > 0:
             ciro = '+cir' if ci == 1 else '+cirs' if ci == 2 else ''
             pps = '' if len(parameters) == 0 else '+' + '+'.join([f'{k}{v}' for k, v in pp.items()])
             target_dir = os.path.join( archive_log_dir, map, f"{rs}+{im}{ciro}{pps}-{id}" )
-            print(target_dir)
-            exit()
 
             # Dir/Overwrite check
             if os.path.exists( target_dir ):
