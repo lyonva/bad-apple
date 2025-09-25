@@ -42,11 +42,11 @@ def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
 
 def draw_heatmap(data, **kwargs):
     reward = data.iloc[0]["reward"]
-    cost = data.iloc[0]["cost"]
+    # cost = data.iloc[0]["cost"]
     data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
     ax = sns.heatmap(data, square=True, cbar=False, **kwargs)
     ax.text(3,len(data)-1, f"{reward:3.5f}", fontsize=16, color="white", ha="center", va="center")
-    ax.text(len(data),len(data)-1, f"{cost}", fontsize=16, color="red", ha="right", va="center")
+    # ax.text(len(data),len(data)-1, f"{cost}", fontsize=16, color="red", ha="right", va="center")
 
 
 def draw_diff_heatmap(data, **kwargs):
@@ -55,7 +55,7 @@ def draw_diff_heatmap(data, **kwargs):
     ax = sns.heatmap(data, square=True, cbar=False, cmap="vlag", **kwargs)
     ax.text(len(data[0])/2,len(data)/2, f"{sum:3.2f}", fontsize=16, ha="center", va="center")
 
-def make_heatmaps(file, baseline):
+def make_heatmaps(file, baseline, aggregate):
     df = pd.read_csv(file)
     #print(df)
 
@@ -69,10 +69,10 @@ def make_heatmaps(file, baseline):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
     # im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
-    # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
-    # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
-    im = ["nors+statecount", "nors+statecount+cir", "adopes+statecount+cir", "adopes+statecount+cirs"]
-    im_name = ["State Count", "State Count CIR", "SC+ADOPES+CIR", "SC+ADOPES+CIRS"]
+    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
+    im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
+    # im = ["nors+statecount", "nors+statecount+cir", "adopes+statecount+cir", "adopes+statecount+cirs"]
+    # im_name = ["State Count", "State Count CIR", "SC+ADOPES+CIR", "SC+ADOPES+CIRS"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
 
@@ -103,14 +103,31 @@ def make_heatmaps(file, baseline):
     big_map = []
 
     for im in ims:
+        if aggregate > 0:
+            count = 0
+            all_sum_df = None
+            all_avg_rew = []
+            # all_costs = []
         for snapshot in snapshots:
             # counts = np.zeros((mapsize, mapsize))
             sub_df = df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["x","y"]]
             counts = sub_df.value_counts() / sub_df.shape[0]
             sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
             avg_rew = np.mean( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) & (df["done"] == True) ][["reward"]] )
-            total_cost = np.sum( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["cost"]], axis=0 ).item()
-            big_map.append( (snapshot, im, sum_df, avg_rew, total_cost) )
+            # total_cost = np.sum( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["cost"]], axis=0 ).item()
+            big_map.append( (snapshot, im, sum_df, avg_rew) )
+            # big_map.append( (snapshot, im, sum_df, avg_rew, total_cost) )
+            if aggregate > 0:
+                count += 1
+                if all_sum_df is None:
+                    all_sum_df = sum_df.copy()
+                else:
+                    all_sum_df += sum_df
+                all_avg_rew.append(avg_rew)
+        if aggregate:
+            all_sum_df /= count
+            big_map.append( ("Cummulative", im, all_sum_df, np.mean(all_avg_rew)) )
+    
 
     # Heatmap
     sns.set(font_scale=1.5)
@@ -149,11 +166,12 @@ def make_heatmaps(file, baseline):
 # Testing params
 @click.option('--file', type=str, help='CSV file with the positions of agents')
 @click.option('--baseline', default="No IM", type=str, help='Name of the baseline method')
+@click.option('--aggregate', default=0, type=int, help='Whether to do a final heatmap that combines all snapshots')
 
 def main(
-    file, baseline,
+    file, baseline, aggregate
 ):
-    make_heatmaps(file, baseline)
+    make_heatmaps(file, baseline, aggregate)
     
 
 if __name__ == '__main__':

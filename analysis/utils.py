@@ -1,8 +1,9 @@
 import pandas as pd
 import os
 import shutil
+import pickle
 
-def load_all_training_data(path):
+def load_all_training_data(path, attach_params = []):
     dirs = [a for a in os.listdir(path) if os.path.isdir(os.path.join(path, a))]
     maps = ["-".join(x.split("-")[1:-1]) for x in dirs]
     df = pd.DataFrame()
@@ -25,6 +26,14 @@ def load_all_training_data(path):
             subdf["map"] = map
             subdf["im"] = im
             subdf["seed"] = seed
+
+            if len(attach_params) > 0:
+                with open(os.path.join(path, dir, subdir, "params.pkl"), 'rb') as f:
+                    loaded_params = dict(pickle.load(f))
+                for param in attach_params:
+                    if param in loaded_params.keys():
+                        subdf[param] = loaded_params[param]
+
             df = pd.concat((df, subdf))
     
     return df
@@ -66,6 +75,6 @@ def fix_the_info_len_bug_training_data(path):
 if __name__ == "__main__":
     dir = "logs"
     # fix_the_info_len_bug_training_data(dir)
-    df = load_all_training_data(dir)
+    df = load_all_training_data(dir, attach_params=['collision_cost'])
     df.to_csv(os.path.join(dir, "alldata.csv")) 
     print(df)
