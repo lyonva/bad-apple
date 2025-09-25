@@ -23,13 +23,22 @@ map_dims = {
     "MultiRoom-N4-S5" : (25, 25, 0.025, 0.0125),
 }
 
+# snap_dict = {
+#     "Empty-16x16" : [250,500,1250,2500,5000],
+#     "DoorKey-8x8" : [500,1000,2500,5000,10000],
+#     "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
+#     "FourRooms" : [1250,2500,6250,12500,25000],
+#     "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
+#     "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
+# }
+
 snap_dict = {
-    "Empty-16x16" : [250,500,1250,2500,5000],
-    "DoorKey-8x8" : [500,1000,2500,5000,10000],
-    "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
-    "FourRooms" : [1250,2500,6250,12500,25000],
-    "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
-    "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
+    "Empty-16x16" : [3,7,13,25,50,100,150,200,250],
+    "DoorKey-8x8" : [5,13,25,50,100,200,300,400,500],
+    "RedBlueDoors-8x8" : [5,13,25,50,100,200,300,400,500],
+    "FourRooms" : [13,32,63,125,250,500,750,1000,1250],
+    "LavaCrossingS11N5" : [5,13,25,50,100,200,300,400,500],
+    "MultiRoom-N4-S5" : [5,13,25,50,100,200,300,400,500],
 }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
@@ -81,13 +90,15 @@ def make_heatmaps(file, baseline):
     # sn_name = ["10%", "100%"]
     
     
-    map = re.search(r'positions-([A-Za-z0-9]+(\-\d+x\d+)?(\-\w\d)+)(\-fixed[\d]+)?.csv', file).group(1)
-    seed  = re.search(r'positions-([A-Za-z0-9]+(\-\d+x\d+)?(\-\w\d)+)(\-fixed([\d]+))?.csv', file).group(4)
+    ref = re.search(r'positions-([A-Za-z0-9]+(\-\d+x\d+)?(\-(\w\d)+)*)(\-fixed([\d]+))?.csv', file)
+    map = ref.group(1)
+    seed  = ref.group(6)
     map_width, map_height, max_v, max_diff_v = map_dims[map]
 
     ims = im_name
     sn1 = snap_dict[map]
-    snapshots = ["5%", "10%", "25%", "50%", "100%"]
+    # snapshots = ["5%", "10%", "25%", "50%", "100%"]
+    snapshots = ["0.25%", "0.625%", "1.25%", "2.50%", "5.00%", "10%", "15%", "20%", "25%"]
 
     df["snapshot"] = df["snapshot"].replace(sn1, snapshots)
     # Filter by seed
