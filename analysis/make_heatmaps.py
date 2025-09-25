@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import re
+import math
 
 # map_dims = {
 #     "Empty-16x16" : (16, 16, 0.05, 0.05),
@@ -62,7 +63,7 @@ def draw_diff_heatmap(data, **kwargs):
     ax = sns.heatmap(data, square=True, cbar=False, cmap="vlag", **kwargs)
     ax.text(len(data[0])/2,len(data)/2, f"{sum:3.2f}", fontsize=16, ha="center", va="center")
 
-def make_heatmaps(file, baseline):
+def make_heatmaps(file, baseline, aggregate):
     df = pd.read_csv(file)
     #print(df)
 
@@ -110,13 +111,31 @@ def make_heatmaps(file, baseline):
     big_map = []
 
     for im in ims:
+        if aggregate > 0:
+            count = 0
+            all_sum_df = None
+            all_avg_rew = []
+            # all_costs = []
         for snapshot in snapshots:
             # counts = np.zeros((mapsize, mapsize))
             sub_df = df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["x","y"]]
             counts = sub_df.value_counts() / sub_df.shape[0]
             sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
             avg_rew = np.mean( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) & (df["done"] == True) ][["reward"]] )
+            if math.isnan(avg_rew): avg_rew = 0
+            # total_cost = np.sum( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["cost"]], axis=0 ).item()
             big_map.append( (snapshot, im, sum_df, avg_rew) )
+            # big_map.append( (snapshot, im, sum_df, avg_rew, total_cost) )
+            if aggregate > 0:
+                count += 1
+                if all_sum_df is None:
+                    all_sum_df = sum_df.copy()
+                else:
+                    all_sum_df += sum_df
+                all_avg_rew.append(avg_rew)
+        if aggregate:
+            big_map.append( ("Cummulative", im, all_sum_df, np.mean(all_avg_rew)) )
+    
 
     # Heatmap
     sns.set(font_scale=1.5)
@@ -131,23 +150,23 @@ def make_heatmaps(file, baseline):
     # plt.show()
 
     # Diff heatmap
-    diff_map = []
-    for snapshot in snapshots:
-        base = big_map[(big_map["im"] == baseline) & (big_map["snapshot"] == snapshot)].drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
-        for im in ims:
-            if im == baseline: continue
-            tech = big_map[(big_map["im"] == im) & (big_map["snapshot"] == snapshot)].drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
-            tech -= base
-            diff_map.append( (snapshot, im, tech) )
+    # diff_map = []
+    # for snapshot in snapshots:
+    #     base = big_map[(big_map["im"] == baseline) & (big_map["snapshot"] == snapshot)].drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
+    #     for im in ims:
+    #         if im == baseline: continue
+    #         tech = big_map[(big_map["im"] == im) & (big_map["snapshot"] == snapshot)].drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
+    #         tech -= base
+    #         diff_map.append( (snapshot, im, tech) )
     
-    sns.set(font_scale=1.5)
-    diff_map = pd.DataFrame(diff_map, columns=["snapshot", "im", "data"])
-    g = sns.FacetGrid(diff_map, col="im", row="snapshot", margin_titles=True)
-    superheat=g.map_dataframe(draw_diff_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v)
-    g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
-    for (row_val, col_val), ax in g.axes_dict.items():
-        ax.set_axis_off()
-    superheat.figure.savefig(f"diff-{map}{seed}.png")
+    # sns.set(font_scale=1.5)
+    # diff_map = pd.DataFrame(diff_map, columns=["snapshot", "im", "data"])
+    # g = sns.FacetGrid(diff_map, col="im", row="snapshot", margin_titles=True)
+    # superheat=g.map_dataframe(draw_diff_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v)
+    # g.set_titles(col_template="Training: {col_name}", row_template="{row_name}")
+    # for (row_val, col_val), ax in g.axes_dict.items():
+    #     ax.set_axis_off()
+    # superheat.figure.savefig(f"diff-{map}{seed}.png")
     # plt.show()
 
 
@@ -155,11 +174,12 @@ def make_heatmaps(file, baseline):
 # Testing params
 @click.option('--file', type=str, help='CSV file with the positions of agents')
 @click.option('--baseline', default="No IM", type=str, help='Name of the baseline method')
+@click.option('--aggregate', default=0, type=int, help='Whether to do a final heatmap that combines all snapshots')
 
 def main(
-    file, baseline,
+    file, baseline, aggregate
 ):
-    make_heatmaps(file, baseline)
+    make_heatmaps(file, baseline, aggregate)
     
 
 if __name__ == '__main__':
