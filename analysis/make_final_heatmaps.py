@@ -1,0 +1,178 @@
+import click
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+import re
+import math
+
+map_dims = {
+    "Empty-16x16" : (16, 16, 0.04, 0.02),
+    "DoorKey-8x8" : (8, 8, 0.075, 0.0375),
+    "DoorKey-16x16" : (16, 16, 0.025, 0.0125),
+    "RedBlueDoors-8x8" : (16, 8, 0.1, 0.05),
+    "FourRooms" : (19, 19, 0.01, 0.02),
+    "LavaCrossingS11N5" : (11, 11, 0.05, 0.025),
+    "MultiRoom-N4-S5" : (25, 25, 0.025, 0.0125),
+}
+
+snap_dict = {
+    "Empty-16x16" : [250,500,1250,2500,5000],
+    "DoorKey-8x8" : [500,1000,2500,5000,10000],
+    "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
+    "FourRooms" : [1250,2500,6250,12500,25000],
+    "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
+    "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
+}
+
+
+def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
+    data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
+    # signs = np.logical_not(np.signbit(data)).astype(np.float32)*2 - 1
+    # data = np.abs(data)
+    # data = signs*np.log10(data - np.min(data) + 0.0001)
+    data = np.log10(data - np.min(data) + 0.0001)
+    sns.heatmap(data, square=True, cbar=False, vmin=np.log10(vmin+0.0001), vmax=np.log10(vmax), **kwargs)
+
+def draw_heatmap(data, **kwargs):
+    reward = data.iloc[0]["reward"]
+    data = data.drop(["im", 'seed'], axis=1).iloc[0]["data"]
+    ax = sns.heatmap(data, square=True, cbar=False, **kwargs)
+    ax.text(4,len(data)-1, f"{reward:3.4f}", fontsize=16, color="white", ha="center", va="center")
+
+
+def draw_diff_heatmap(data, **kwargs):
+    data = data.drop(["im", 'seed'], axis=1).iloc[0]["data"]
+    sum = np.sum(np.abs(data))/2
+    ax = sns.heatmap(data, square=True, cbar=False, cmap="vlag", **kwargs)
+    ax.text(len(data[0])/2,len(data)/2, f"{100*sum:3.2f}%", fontsize=16, ha="center", va="center")
+
+def make_final_heatmaps(map):
+    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
+    im_name = ["No IM", "State Count", "GRM", "ADOPS", "PIES"]
+    seeds = [1] if "Empty" in map else [1,2,3,4,5,6,7,8,9,10]
+    map_width, map_height, max_v, max_diff_v = map_dims[map]
+    max_steps = snap_dict[map][-1]
+
+    big_map = []
+    # Load all data
+    for seed in seeds:
+        df = pd.read_csv(f"positions-{map}-fixed{seed}.csv")
+        oracle_df = pd.read_csv(f"positions-oracle-{map}-fixed{seed}.csv")
+        df["im"] = df["im"].replace(im, im_name)
+        df = df[df["snapshot"] == max_steps]
+
+        # Oracle
+        sub_df = oracle_df[["x","y"]]
+        counts = sub_df.value_counts() / sub_df.shape[0]
+        sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
+        avg_rew = np.mean( oracle_df.loc[ (oracle_df["done"] == True) ][["reward"]] )
+        if math.isnan(avg_rew): avg_rew = 0
+        big_map.append( (seed, "A*", sum_df, avg_rew) )
+
+        for imm in im_name:
+            sub_df = df.loc[ (df["im"]==imm)][["x","y"]]
+            counts = sub_df.value_counts() / sub_df.shape[0]
+            sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
+            avg_rew = np.mean( df.loc[ (df["im"]==imm) & (df["done"] == True) ][["reward"]] )
+            if math.isnan(avg_rew): avg_rew = 0
+            big_map.append( (seed, imm, sum_df, avg_rew) )
+        
+
+    #print(df)
+
+    # im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
+    # im = ["nomodel", "statecount", "maxentropy", "icm", "rnd", "grm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
+    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
+    # im = ["nors+nomodel", "nors+statecount", "nors+icm", "grm+statecount", "grm+icm", "adopes+statecount", "adopes+icm", "pies+statecount", "pies+icm"]
+    # im_name = ["No IM", "State Count", "ICM", "GRM+SC", "GRM+ICM", "ADOPES+SC", "ADOPES+ICM", "PIES+SC", "PIES+ICM"]
+
+    # sn1 = [3, 15, 305, 610, 915, 1221]
+    # sn_name = ["0.25%", "1.25%", "25%", "50%", "75%", "100%"]
+    # sn1 = [25, 49, 123, 245, 489]
+    # sn1 = [50,100,250,500,1000]
+    # sn1 = [250,500,1250,2500,5000]
+    # sn_name = ["5%", "10%", "25%", "50%", "100%"]
+    # sn_name = ["10%", "100%"]
+
+    # big_map = []
+
+    # for im in ims:
+    #     if aggregate > 0:
+    #         count = 0
+    #         all_sum_df = None
+    #         all_avg_rew = []
+    #         # all_costs = []
+    #     for snapshot in snapshots:
+    #         # counts = np.zeros((mapsize, mapsize))
+    #         sub_df = df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["x","y"]]
+    #         counts = sub_df.value_counts() / sub_df.shape[0]
+    #         sum_df = np.array([ [0.0 if (x,y) not in counts.index else counts[x,y] for x in range(map_width)] for y in range(map_height) ])
+    #         avg_rew = np.mean( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) & (df["done"] == True) ][["reward"]] )
+    #         if math.isnan(avg_rew): avg_rew = 0
+    #         # total_cost = np.sum( df.loc[ (df["im"]==im) & (df["snapshot"] == snapshot) ][["cost"]], axis=0 ).item()
+    #         big_map.append( (snapshot, im, sum_df, avg_rew) )
+    #         # big_map.append( (snapshot, im, sum_df, avg_rew, total_cost) )
+    #         if aggregate > 0:
+    #             count += 1
+    #             if all_sum_df is None:
+    #                 all_sum_df = sum_df.copy()
+    #             else:
+    #                 all_sum_df += sum_df
+    #             all_avg_rew.append(avg_rew)
+    #     if aggregate:
+    #         big_map.append( ("Cummulative", im, all_sum_df, np.mean(all_avg_rew)) )
+    
+
+    # Heatmap
+    sns.set(font_scale=1.5)
+    big_map = pd.DataFrame(big_map, columns=["seed", "im", "data", "reward"])
+    g = sns.FacetGrid(big_map, col="im", row="seed", margin_titles=True)
+    superheat=g.map_dataframe(draw_heatmap, annot=False, vmin=0, vmax=max_v)
+    g.set_titles(col_template="{col_name}", row_template="")
+    for (row_val, col_val), ax in g.axes_dict.items():
+        ax.set_axis_off()
+    g.tight_layout()
+    superheat.figure.savefig(f"final-heat-{map}.png")
+    # plt.show()
+
+    # Diff heatmap
+    diff_map = []
+    for seed in seeds:
+        base = big_map[(big_map["im"] == "A*") & (big_map["seed"] == seed)].drop(["im", 'seed'], axis=1).iloc[0]["data"]
+        for im in im_name:
+            if im == "A*": continue
+            tech = big_map[(big_map["im"] == im) & (big_map["seed"] == seed)].drop(["im", 'seed'], axis=1).iloc[0]["data"]
+            tech -= base
+            diff_map.append( (seed, im, tech) )
+    
+    sns.set(font_scale=1.5)
+    diff_map = pd.DataFrame(diff_map, columns=["seed", "im", "data"])
+    g = sns.FacetGrid(diff_map, col="im", row="seed", margin_titles=True)
+    superheat=g.map_dataframe(draw_diff_heatmap, annot=False, vmin=-max_diff_v, vmax=max_diff_v)
+    g.set_titles(col_template="{col_name}", row_template="")
+    for (row_val, col_val), ax in g.axes_dict.items():
+        ax.set_axis_off()
+    g.tight_layout()
+    superheat.figure.savefig(f"final-diff-{map}.png")
+    # plt.show()
+
+
+@click.command()
+# Testing params
+@click.option('--map', type=str, help='Name of the map')
+
+def main(
+    map
+):
+    make_final_heatmaps(map)
+    
+
+if __name__ == '__main__':
+    main()

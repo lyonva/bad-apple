@@ -24,23 +24,23 @@ map_dims = {
     "MultiRoom-N4-S5" : (25, 25, 0.025, 0.0125),
 }
 
-# snap_dict = {
-#     "Empty-16x16" : [250,500,1250,2500,5000],
-#     "DoorKey-8x8" : [500,1000,2500,5000,10000],
-#     "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
-#     "FourRooms" : [1250,2500,6250,12500,25000],
-#     "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
-#     "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
-# }
-
 snap_dict = {
-    "Empty-16x16" : [3,7,13,25,50,100,150,200,250],
-    "DoorKey-8x8" : [5,13,25,50,100,200,300,400,500],
-    "RedBlueDoors-8x8" : [5,13,25,50,100,200,300,400,500],
-    "FourRooms" : [13,32,63,125,250,500,750,1000,1250],
-    "LavaCrossingS11N5" : [5,13,25,50,100,200,300,400,500],
-    "MultiRoom-N4-S5" : [5,13,25,50,100,200,300,400,500],
+    "Empty-16x16" : [250,500,1250,2500,5000],
+    "DoorKey-8x8" : [500,1000,2500,5000,10000],
+    "RedBlueDoors-8x8" : [500,1000,2500,5000,10000],
+    "FourRooms" : [1250,2500,6250,12500,25000],
+    "LavaCrossingS11N5" : [500,1000,2500,5000,10000],
+    "MultiRoom-N4-S5" : [500,1000,2500,5000,10000],
 }
+
+# snap_dict = {
+#     "Empty-16x16" : [3,7,13,25,50,100,150,200,250],
+#     "DoorKey-8x8" : [5,13,25,50,100,200,300,400,500],
+#     "RedBlueDoors-8x8" : [5,13,25,50,100,200,300,400,500],
+#     "FourRooms" : [13,32,63,125,250,500,750,1000,1250],
+#     "LavaCrossingS11N5" : [5,13,25,50,100,200,300,400,500],
+#     "MultiRoom-N4-S5" : [5,13,25,50,100,200,300,400,500],
+# }
 
 def draw_log_heatmap(data, vmin=0, vmax=1, **kwargs):
     data = data.drop(["im", 'snapshot'], axis=1).iloc[0]["data"]
@@ -63,7 +63,7 @@ def draw_diff_heatmap(data, **kwargs):
     ax = sns.heatmap(data, square=True, cbar=False, cmap="vlag", **kwargs)
     ax.text(len(data[0])/2,len(data)/2, f"{sum:3.2f}", fontsize=16, ha="center", va="center")
 
-def make_heatmaps(file, baseline, aggregate):
+def make_heatmaps(file, baseline, aggregate, exploration):
     df = pd.read_csv(file)
     #print(df)
 
@@ -98,8 +98,8 @@ def make_heatmaps(file, baseline, aggregate):
 
     ims = im_name
     sn1 = snap_dict[map]
-    # snapshots = ["5%", "10%", "25%", "50%", "100%"]
-    snapshots = ["0.25%", "0.625%", "1.25%", "2.50%", "5.00%", "10%", "15%", "20%", "25%"]
+    snapshots = ["5%", "10%", "25%", "50%", "100%"]
+    # snapshots = ["0.25%", "0.625%", "1.25%", "2.50%", "5.00%", "10%", "15%", "20%", "25%"]
 
     df["snapshot"] = df["snapshot"].replace(sn1, snapshots)
     # Filter by seed
@@ -175,11 +175,12 @@ def make_heatmaps(file, baseline, aggregate):
 @click.option('--file', type=str, help='CSV file with the positions of agents')
 @click.option('--baseline', default="No IM", type=str, help='Name of the baseline method')
 @click.option('--aggregate', default=0, type=int, help='Whether to do a final heatmap that combines all snapshots')
+@click.option('--exploration', default=0, type=int, help='Whether to display the exploration rate')
 
 def main(
-    file, baseline, aggregate
+    file, baseline, aggregate, exploration
 ):
-    make_heatmaps(file, baseline, aggregate)
+    make_heatmaps(file, baseline, aggregate, exploration)
     
 
 if __name__ == '__main__':

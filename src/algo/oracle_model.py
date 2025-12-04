@@ -53,7 +53,7 @@ class Oracle:
                     break
             if done: break
 
-        if self.env_name == "Empty" or self.env_name == "FourRooms":
+        if self.env_name == "Empty" or self.env_name == "FourRooms" or "LavaCrossing" in self.env_name:
             # Find goal tile
             gx, gy = -1, -1
             done = False
@@ -116,8 +116,10 @@ class Oracle:
             chosen, steps = None, 1000000
             for approach in key_approaches:
                 if obs[approach[0],approach[1],0] not in [OBJECT_TO_IDX["agent"], OBJECT_TO_IDX["empty"]]: continue # Check if traversable
-                cost = len(self.pathfind(obs, sx, sy, sr, approach[0], approach[1], approach[2])) + \
-                        len(self.pathfind(obs,approach[0], approach[1], approach[2], gx, gy, ignore_doors=True))
+                path1, path2 = self.pathfind(obs, sx, sy, sr, approach[0], approach[1], approach[2]), \
+                    self.pathfind(obs,approach[0], approach[1], approach[2], gx, gy, ignore_doors=True)
+                if path1 is None or path2 is None: continue
+                cost = len(path1) + len(path2)
                 if cost < steps:
                     chosen = approach
                     steps = cost
@@ -130,6 +132,38 @@ class Oracle:
                             (OraclePlanSteps.OPEN),
                             (OraclePlanSteps.PATHFIND, (door_approach_x, door_approach_y, door_approach_r, gx, gy)),
             ]
+        
+        # MultiRoom, we first pathfind to see which doors are in the way
+        # Then we pathfind to each one
+        if "MultiRoom" in self.env_name:
+            # Find goal tile
+            gx, gy = -1, -1
+            done = False
+            for i in range(len(obs)):
+                for j in range(len(obs[i])):
+                    if obs[i][j][0] == OBJECT_TO_IDX["goal"]:
+                        gx, gy = i, j
+                        done = True
+                        break
+                if done: break
+            
+            # Find path to goal ignoring doors
+            path = self.pathfind(obs, sx, sy, sr, gx, gy, None, True, True)
+
+            # Find doors in the path and record them as pathfinding objectives
+            self.plan = []
+            prev_x, prev_y, prev_r = sx, sy, sr
+            last_x, last_y, last_r = sx, sy, sr
+            for curr_x, curr_y, curr_r in path:
+                world_object = obs[curr_x][curr_y]
+                if world_object[0] == OBJECT_TO_IDX["door"]:
+                    self.plan.append( (OraclePlanSteps.PATHFIND, (last_x, last_y, last_r, prev_x, prev_y, prev_r)) )
+                    self.plan.append( (OraclePlanSteps.OPEN) )
+                    last_x, last_y, last_r = prev_x, prev_y, prev_r
+                elif world_object[0] == OBJECT_TO_IDX["goal"]:
+                    self.plan.append( (OraclePlanSteps.PATHFIND, (last_x, last_y, last_r, curr_x, curr_y, curr_r)) )
+                    break # Should be the end
+                prev_x, prev_y, prev_r = curr_x, curr_y, curr_r
 
 
     def forward(self, obs):
@@ -168,7 +202,7 @@ class Oracle:
         self.plan = None
         self.path = []
     
-    def pathfind(self, obs, starting_x, starting_y, starting_r, goal_x, goal_y, goal_r = None, ignore_doors=False):
+    def pathfind(self, obs, starting_x, starting_y, starting_r, goal_x, goal_y, goal_r = None, ignore_doors=False, return_as_positions = False):
         n, m = len(obs), len(obs[0])
         starting_state = (starting_x, starting_y, starting_r)
 
@@ -198,7 +232,7 @@ class Oracle:
             fw = forward_pos(x, y, r)
             if (-1 < fw[0] < n) and (-1 < fw[1] < m):
                 world_object = obs[fw[0]][fw[1]]
-                if world_object[0] in [OBJECT_TO_IDX["empty"], OBJECT_TO_IDX["goal"]] or (world_object[0] == OBJECT_TO_IDX["door"] and world_object[2] == STATE_TO_IDX["open"]) or (ignore_doors and world_object[0] in [OBJECT_TO_IDX["key"], OBJECT_TO_IDX["door"]]):
+                if world_object[0] in [OBJECT_TO_IDX["empty"], OBJECT_TO_IDX["goal"], OBJECT_TO_IDX["agent"]] or (world_object[0] == OBJECT_TO_IDX["door"] and world_object[2] == STATE_TO_IDX["open"]) or (ignore_doors and world_object[0] in [OBJECT_TO_IDX["key"], OBJECT_TO_IDX["door"]]):
                     neighbors.append(fw)
 
             for (nx, ny, nr) in neighbors:
@@ -222,20 +256,25 @@ class Oracle:
             while (x, y, r) != starting_state:
                 prev_x, prev_y, prev_r = came_from[x][y][r]
                 
-                # Figure out the difference
-                if r == prev_r: # If same rotation, it was forward
-                    path.append(Actions.forward)
-                elif (r - prev_r) % 4 == 1: # Right
-                    path.append(Actions.right)
-                elif (r - prev_r) % 4 == 3: # Left
-                    path.append(Actions.left)
-                else: # Shouldn't happen
-                    print((x, y, r), (prev_x, prev_y, prev_r))
-                    assert(False)
+                if return_as_positions:
+                    path.append((x, y, r))
+                else:
+                    # Figure out the difference
+                    if r == prev_r: # If same rotation, it was forward
+                        path.append(Actions.forward)
+                    elif (r - prev_r) % 4 == 1: # Right
+                        path.append(Actions.right)
+                    elif (r - prev_r) % 4 == 3: # Left
+                        path.append(Actions.left)
+                    else: # Shouldn't happen
+                        print((x, y, r), (prev_x, prev_y, prev_r))
+                        assert(False)
                 
                 x, y, r = prev_x, prev_y, prev_r
 
             path.reverse()
+        else:
+            path = None
         
         return path
     

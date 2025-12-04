@@ -4,16 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-ticks_dict = {
-    "Empty-16x16" : [0,1000,2000,3000,4000,5000],
-    "DoorKey-8x8" : [0,2000,4000,6000,8000,10000],
-    "RedBlueDoors-8x8" : [0,2000,4000,6000,8000,10000],
-    "FourRooms" : [0,5000,10000,15000,20000,25000],
-    "LavaCrossingS11N5" : [0,2000,4000,6000,8000,10000],
-    "MultiRoom-N4-S5" : [0,2000,4000,6000,8000,10000],
+xlims_dict = {
+    "Empty-16x16" : [200, 200, 50],
+    "DoorKey-8x8" : [500, 500, 50],
+    "RedBlueDoors-8x8" : [500, 500, 50],
+    "FourRooms" : [500, 500, 50],
+    "LavaCrossingS11N5" : [500, 500, 50],
+    "MultiRoom-N4-S5" : [500, 500, 50],
 }
 
-def make_plots(file):
+def make_plots_exploration(file):
     # sns.set_theme(style="darkgrid")
     sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
 
@@ -30,10 +30,8 @@ def make_plots(file):
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
 
-    # atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:"]
-    # atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
-    atts = ["rollout/ep_rew_mean"]
-    atts_name = ["Episode Reward"]
+    atts = ["rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ll_rew_count"]
+    atts_name = ["Position Coverage", "Observation Coverage", "Extrinsic Reward Instances"]
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
 
     # maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
@@ -43,17 +41,24 @@ def make_plots(file):
     df.columns = ["im", "iterations", "map", "metric", "value"]
 
     # Make Position/State coverage relative to map
-    # for map in maps:
-    #     for metric in ["Position Coverage", "Observation Coverage"]:
-    #         df.loc[(df["map"] == map) & (df["metric"] == metric), "value"] /= df[(df["map"] == map) & (df["metric"] == metric)]["value"].max()
+    for map in maps:
+        for metric in ["Position Coverage", "Observation Coverage"]:
+            df.loc[(df["map"] == map) & (df["metric"] == metric), "value"] /= df[(df["map"] == map) & (df["metric"] == metric)]["value"].max()
 
     # for map in maps_name:
     #     for metric in ["Episode Reward"]:
     #         print(map)
     #         print( df.loc[(df["map"] == map) & (df["metric"] == metric) & (df["iterations"] == 1221), ["im", "value"]].groupby("im").mean()  )
 
+    # Limit to certain iterations
+    subdfs = []
+    for map in maps:
+        for metric, limit in zip(atts_name, xlims_dict[map]):
+            subdfs.append( df[ (df["map"] == map) & (df["metric"] == metric) & (df["iterations"] <= limit) ] )
+    df = pd.concat(subdfs)
+
     # df = df[df["iterations"] <= 10] # Speed up for testing
-    df = df[df["iterations"] % 50 == 1 ] # Speed up for testing
+    # df = df[df["iterations"] % 50 == 1 ] # Speed up for testing
 
     # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
     #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
@@ -74,24 +79,10 @@ def make_plots(file):
         g.map_dataframe(sns.lineplot, x="iterations", y="value", hue="im", hue_order=sub_plot, palette='CMRmap')
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
         g.set_axis_labels("", "")
-        for (row_val, col_val), ax in g.axes_dict.items():
-            # ax.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
-            # ax.set_xticks([0, 200, 400, 600, 800, 1000])
-            if col_val == "Entropy":
-                # ax.set_ylim((0,2))
-                # ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])
-                ax.set_ylim((0, 0.4))
-                ax.set_yticks([0.0, 0.1, 0.2, 0.3, 0.4])
-            else:
-                # ax.set_ylim((0,1))
-                # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
-                ax.set_ylim((0.4,1))
-                ax.set_yticks([0.4, 0.55, 0.7, 0.85, 1.0])
-            ax.set_xticks(ticks_dict[row_val])
         g.add_legend(ncol=len(sub_plot))
         g.tight_layout()
         plt.show()
-        g.savefig(f"all_plots-{i}.png", dpi=300)
+        g.savefig(f"exploration_plots-{i}.png", dpi=300)
 
 @click.command()
 @click.option('--file', type=str, default="logs/alldata.csv", help='CSV file with the training statistics of all models')
@@ -99,7 +90,7 @@ def make_plots(file):
 def main(
     file,
 ):
-    make_plots(file)
+    make_plots_exploration(file)
     
 
 if __name__ == '__main__':
