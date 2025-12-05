@@ -55,10 +55,6 @@ class TestingRecord:
         self.dones[iter] = np.array(dones).copy()
         self.positions[iter] = np.array(positions).copy()
 
-
-def float_zeros(tensor_shape, config):
-    return th.zeros(tensor_shape, device=config.device, dtype=th.float32)
-
 def test(config):
     buffer_size = ceil(config.total_steps / config.num_processes)
 
@@ -111,7 +107,7 @@ def test(config):
             # Per model
             for tech in techs:
                 if config.render: print(f"{tech}-{snap}")
-                model = PPOTrainer.load( os.path.join(config.models_dir, f"{tech}-{seed}", f"snapshot-{snap}"), env=None )
+                model = PPOTrainer.load( os.path.join(config.models_dir, f"{tech}-{seed}", f"snapshot-{snap}.zip"), env=None )
                 record = TestingRecord(buffer_size, config.num_processes, obs_shape, action_dim)
                 
                 
@@ -143,8 +139,9 @@ def test(config):
                         time.sleep(0.1)
                         
 
-                    obs_tensor = obs_as_tensor(obs, config.device)
-                    actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems )
+                    obs_tensor = obs_as_tensor(obs, model.device)
+                    model._last_policy_mems = model._last_policy_mems.to(model.device)
+                    actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems, deterministic=config.deterministic )
                     actions = actions.cpu().numpy()
                     if isinstance(env.action_space, gym.spaces.Box):
                         actions = np.clip(actions, env.action_space.low, env.action_space.high)
@@ -200,14 +197,16 @@ def test(config):
 @click.option('--total_steps', default=int(5000), type=int, help='Total number of frames to run for testing')
 @click.option('--fixed_seed', default=-1, type=int, help="Fixed seed for every environment reset. -1 will use the same seed the model was trained on.")
 @click.option('--render', default=0, type=int, help="Activate rendering. Will significantly slow down the process.")
+@click.option('--deterministic', default=1, type=int, help="Whether to use the most likely action instead of PPO random action sampling. 0 = Stochastic/Random, 1 = Deterministic")
 
 def main(
-    game_name, models_dir, baseline, seeds, snaps, num_processes, total_steps, fixed_seed, render,
+    game_name, models_dir, baseline, seeds, snaps, num_processes, total_steps, fixed_seed, render, deterministic,
 ):
     args = locals().items()
     config = TrainingConfig()
     for k, v in args: setattr(config, k, v)
     config.env_source = "minigrid"
+    config.deterministic = bool(config.deterministic)
 
     config.init_env_name(game_name, None)
 

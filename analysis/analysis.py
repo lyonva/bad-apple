@@ -1,17 +1,19 @@
 import pandas as pd
 import numpy as np
 
-df = pd.read_csv("logs/alldata.csv")
-im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
-im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
+df = pd.read_csv("super runs/logs/alldata.csv")
+# im = ["nomodel", "statecount", "maxentropy", "rnd", "grm"]
+# im_name = ["No IM", "State Count", "Max Entropy", "RND", "GRM"]
+im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
+im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
 df = df.dropna(axis=0, subset=["iterations"])
 
 atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:", "rollout/int_rew_mean", "rollout/ll_rew_count"]
 atts_name = ["Episode Reward", "State Coverage", "Position Coverage", "Entropy", "Intrinsic Reward", "Reward Count"]
 df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
 
-maps = ["DoorKey", "RedBlue", "FourRooms"]
-maps_name = ["DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
+maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"] 
+maps_name = ["Empty", "DoorKey", "RedBlue", "FourRooms", "LavaCrossing", "MultiRoom"]
 df["map"] = df["map"].replace(maps, maps_name)
 
 df = df[["im", "iterations", "map", "seed"] + atts_name].set_index(["im", "iterations", "map", "seed"]).stack(future_stack=True).reset_index()

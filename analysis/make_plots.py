@@ -39,7 +39,6 @@ def make_plots(file):
     atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ep_entropy", "rollout/ll_cost_count"]
     atts_name = ["Episode Reward", "Position Coverage", "Entropy", "Total Constraint Violations"]
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
-    
 
     # maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
     # maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
@@ -60,7 +59,7 @@ def make_plots(file):
     #         print( df.loc[(df["map"] == map) & (df["metric"] == metric) & (df["iterations"] == 1221), ["im", "value"]].groupby("im").mean()  )
 
     # df = df[df["iterations"] <= 10] # Speed up for testing
-    df = df[df["iterations"] % 200 == 1 ] # Speed up for testing
+    df = df[df["iterations"] % 50 == 1 ] # Speed up for testing
 
     # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
     #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
