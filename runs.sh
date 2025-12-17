@@ -1,6 +1,6 @@
 #! /bin/bash
 env_source="Atari"
-map="asteroids"
+map="Frogger"
 im="NoModel"
 irc=0.0005
 rs="NoRS"
