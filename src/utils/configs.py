@@ -9,6 +9,7 @@ from src.env.safety_constraints import MiniGridSafetyCostWrapper
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import VecMonitor
+from ale_py.vector_env import AtariVectorEnv
 from datetime import datetime
 
 from src.algo.common_models.cnns import BatchNormCnnFeaturesExtractor, LayerNormCnnFeaturesExtractor, \
@@ -38,6 +39,8 @@ class TrainingConfig():
         if self.env_source == EnvSrc.MiniGrid and not game_name.startswith('MiniGrid-'):
             env_name = f'MiniGrid-{game_name}'
             env_name += '-v0'
+        if self.env_source == EnvSrc.Atari:
+            pass # Do not need to do anything
         self.env_name = env_name
         self.project_name = env_name if project_name is None else project_name
 
@@ -87,6 +90,9 @@ class TrainingConfig():
                 assert not self.fully_obs
                 _seeds = [self.fixed_seed]
                 wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), self.enable_cost, self.collision_cost, self.termination_cost)
+            return wrapper_class
+        if self.env_source == EnvSrc.Atari:
+            wrapper_class = AtariVectorEnv(self.env_name, num_envs=self.num_processes)
             return wrapper_class
         return None
 
