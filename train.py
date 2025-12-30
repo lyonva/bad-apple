@@ -207,7 +207,7 @@ def train(config):
               help='EMA smoothing factor for RND error normalization (-1: total average)')
 # Reward shaping params
 @click.option('--int_shape_source', default='NoRS', type=str,
-              help='Source of rewarde shaping for IRs: [NoRS|GRM|ADOPES]')
+              help='Source of rewarde shaping for IRs: [NoRS|PBIM|GRM|ADOPES]')
 @click.option('--grm_delay', default=1, type=int,
               help='D-GRM  for intrinsic reward discounting')
 @click.option('--adopes_coef_inc', default=0.0004, type=float,

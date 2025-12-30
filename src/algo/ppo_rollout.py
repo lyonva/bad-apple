@@ -14,6 +14,7 @@ from src.utils.common_func import set_random_seed
 from src.utils.enum_types import ModelType, EnvSrc, ShapeType
 from src.env.subproc_vec_env import CustomVecTranspose
 
+from src.algo.reward_shaping.pbim import PBIM
 from src.algo.reward_shaping.grm import GRM
 from src.algo.reward_shaping.adopes import ADOPES
 from src.algo.reward_shaping.pies import PIES
@@ -141,6 +142,8 @@ class PPORollout(BaseAlgorithm):
         # Reward shaping model
         if self.int_shape_source == ShapeType.NoRS:
             self.int_shape_model = None
+        elif self.int_shape_source == ShapeType.PBIM:
+            self.int_shape_model = PBIM(self.gamma, self.n_envs)
         elif self.int_shape_source == ShapeType.GRM:
             self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
         elif self.int_shape_source == ShapeType.ADOPES:
@@ -763,6 +766,8 @@ class PPORollout(BaseAlgorithm):
     def shape_intrinsic_rewards(self, rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones):
         if self.int_shape_source == ShapeType.NoRS:
             pass
+        elif self.int_shape_source == ShapeType.PBIM:
+            intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, dones)
         elif self.int_shape_source == ShapeType.GRM:
             intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, dones)
         elif self.int_shape_source == ShapeType.ADOPES:

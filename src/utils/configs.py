@@ -105,7 +105,7 @@ class TrainingConfig():
                 monitor_dir=self.log_dir,
                 env_kwargs={"max_steps":self.max_episode_steps},
             )
-        if self.env_source == EnvSrc.Atari:
+        elif self.env_source == EnvSrc.Atari:
             venv = make_atari_env(
                 self.env_name,
                 vec_env_cls=CustomSubprocVecEnv,

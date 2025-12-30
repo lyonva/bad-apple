@@ -80,6 +80,7 @@ class ShapeType(Enum):
     GRM = 1
     ADOPES = 2
     PIES = 3
+    PBIM = 4
 
     @staticmethod
     def get_enum_shape_type(shape_type):
@@ -95,6 +96,8 @@ class ShapeType(Enum):
                 return ShapeType.ADOPES
             elif shape_type == "pies":
                 return ShapeType.PIES
+            elif shape_type == "pbim":
+                return ShapeType.PBIM
             elif shape_type == "nors":
                 return ShapeType.NoRS
         raise ValueError
@@ -110,6 +113,8 @@ class ShapeType(Enum):
                 return "adopes"
             elif shape_type == ShapeType.PIES:
                 return "pies"
+            elif shape_type == ShapeType.PBIM:
+                return "pbim"
             elif shape_type == ShapeType.NoRS:
                 return "nors"
         raise ValueError
