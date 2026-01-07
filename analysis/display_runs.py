@@ -3,13 +3,22 @@ import click
 import os
 from os.path import join
 
+# snap_dict = {
+#     "MiniGrid-Empty-16x16-v0" : [250,500,1250,2500,5000],
+#     "MiniGrid-DoorKey-8x8-v0" : [500,1000,2500,5000,10000],
+#     "MiniGrid-RedBlueDoors-8x8-v0" : [500,1000,2500,5000,10000],
+#     "MiniGrid-FourRooms-v0" : [1250,2500,6250,12500,25000],
+#     "MiniGrid-LavaCrossingS11N5-v0" : [500,1000,2500,5000,10000],
+#     "MiniGrid-MultiRoom-N4-S5-v0" : [500,1000,2500,5000,10000],
+# }
+
 snap_dict = {
-    "MiniGrid-Empty-16x16-v0" : [250,500,1250,2500,5000],
-    "MiniGrid-DoorKey-8x8-v0" : [500,1000,2500,5000,10000],
-    "MiniGrid-RedBlueDoors-8x8-v0" : [500,1000,2500,5000,10000],
-    "MiniGrid-FourRooms-v0" : [1250,2500,6250,12500,25000],
-    "MiniGrid-LavaCrossingS11N5-v0" : [500,1000,2500,5000,10000],
-    "MiniGrid-MultiRoom-N4-S5-v0" : [500,1000,2500,5000,10000],
+    "MiniGrid-Empty-16x16-v0" : [1000],
+    "MiniGrid-DoorKey-8x8-v0" : [1000],
+    "MiniGrid-RedBlueDoors-8x8-v0" : [2000],
+    "MiniGrid-FourRooms-v0" : [2000],
+    "MiniGrid-LavaCrossingS11N5-v0" : [2000],
+    "MiniGrid-MultiRoom-N4-S5-v0" : [2000],
 }
 
 def display_runs(dir):
