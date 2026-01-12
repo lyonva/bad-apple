@@ -36,3 +36,17 @@ class MiniGridSafetyCostWrapper(Wrapper):
         self._last_obs = obs
 
         return obs, reward, cost, terminated, truncated, info
+
+# TODO Properly implement
+class AtariSafetyCostWrapper(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+    
+    def reset(self, *, seed = None, options = None):
+        obs, info = self.env.reset(seed=seed, options=options)
+        self._last_obs = obs
+        return obs, info
+    
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        return obs, reward, 0, terminated, truncated, info

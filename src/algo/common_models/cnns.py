@@ -72,7 +72,7 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
             elif self.n_input_size == 64: image_sizes = [15, 6, 3]
             else: raise NotImplementedError
 
-            # Smaller CNN for ProcGen games
+            # Atari CNN
             self.cnn = nn.Sequential(
                 NormType.get_norm_layer_2d(self.norm_type, n_input_channels, self.n_input_size),
 

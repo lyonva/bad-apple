@@ -5,9 +5,6 @@ import seaborn as sns
 import numpy as np
 
 def display_runs_converge(file):
-    # sns.set_theme(style="darkgrid")
-    sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
-
     df = pd.read_csv(file)
     # im = ["nomodel", "statecount", "grm"]
     # im_name = ["No IM", "State Count", "GRM"]
@@ -17,8 +14,11 @@ def display_runs_converge(file):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM"]
-    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
-    im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
+    # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount",  "pies+statecount"]
+    # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
+    im = ["NoRS+NoModel+grm_delay1+int_rew_norm0", "NoRS+StateCount+grm_delay1+int_rew_norm0", "PBIM+StateCount+grm_delay1+int_rew_norm0", "PBIM+StateCount+grm_delay1+int_rew_norm1",
+          "GRM+StateCount+grm_delay1+int_rew_norm0", "GRM+StateCount+grm_delay1+int_rew_norm1", "GRM+StateCount+grm_delay10+int_rew_norm0", "GRM+StateCount+grm_delay10+int_rew_norm1"]
+    im_name = ["No IM", "IM", "PBIM no norm", "PBIM", "GRM D=1 no norm", "GRM D=1", "GRM D=10 no norm", "GRM D=10"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
@@ -28,12 +28,16 @@ def display_runs_converge(file):
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
     # df = df.astype({"Position Coverage" : "float32", "Observation Coverage" : "float32"})
 
-    maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
-    maps_length = [5000, 10000, 10000, 25000, 10000, 10000]
-    map_threshold = [0.96927, 0.96078, 0.98043, 0.66324, 0.95155, 0.69076]
+    # maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    # maps_length = [5000, 10000, 10000, 25000, 10000, 10000]
+    # map_threshold = [0.96927, 0.96078, 0.98043, 0.66324, 0.95155, 0.69076]
+
+    maps = ["Empty-16x16", "DoorKey-8x8", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    maps_length = [1000, 1000, 2000, 2000]
+    map_threshold = [0.96927, 0.96078, 0.95155, 0.69076]
 
     min_seed = 1
-    max_seed = 10
+    max_seed = 5
 
 
     # First show iteration where it converges

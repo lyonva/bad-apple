@@ -5,9 +5,10 @@ import torch as th
 import wandb
 from torch import nn
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
-from src.env.safety_constraints import MiniGridSafetyCostWrapper
+from src.env.safety_constraints import MiniGridSafetyCostWrapper, AtariSafetyCostWrapper
 from stable_baselines3.common.callbacks import CallbackList
-from stable_baselines3.common.env_util import make_vec_env, make_atari_env
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.atari_wrappers import AtariWrapper
 from stable_baselines3.common.vec_env import VecMonitor
 import ale_py
 from datetime import datetime
@@ -91,7 +92,7 @@ class TrainingConfig():
                 wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), self.enable_cost, self.collision_cost, self.termination_cost)
             return wrapper_class
         if self.env_source == EnvSrc.Atari:
-            wrapper_class = None
+            wrapper_class = lambda x: AtariSafetyCostWrapper(AtariWrapper(x))
             return wrapper_class
         return None
 
@@ -106,11 +107,14 @@ class TrainingConfig():
                 env_kwargs={"max_steps":self.max_episode_steps},
             )
         elif self.env_source == EnvSrc.Atari:
-            venv = make_atari_env(
+            venv = make_vec_env(
                 self.env_name,
-                vec_env_cls=CustomSubprocVecEnv,
                 n_envs=self.num_processes,
-                monitor_dir=self.log_dir,
+                seed=None,
+                start_index=0,
+                monitor_dir=None,
+                wrapper_class=wrapper_class,
+                vec_env_cls=CustomSubprocVecEnv,
                 # env_kwargs={"max_steps":self.max_episode_steps},
             )
         else:
