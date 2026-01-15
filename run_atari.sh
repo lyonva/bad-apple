@@ -4,13 +4,14 @@ map="MontezumaRevenge"
 im="NoModel"
 rs="NoRS"
 steps=61440000
-recs="1500,2250,3000,7500,15000,30000"
+recs="7500,15000,22500,30000"
+ext_rew_adjust=0.002
 norm=0
 dgrm=1
 pies_decay=0
 cost_as_ir=0
 collision_cost=0
-seeds=(0)
+seeds=(1)
 
 for seed in ${seeds[@]}; do
     python train.py --env_source="$env_source" --game_name="$map" --policy_cnn_type=1 --features_dim=448 --latents_dim=448 --model_features_dim=448 \
