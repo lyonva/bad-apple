@@ -92,7 +92,7 @@ class TrainingConfig():
                 wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), self.enable_cost, self.collision_cost, self.termination_cost)
             return wrapper_class
         if self.env_source == EnvSrc.Atari:
-            wrapper_class = lambda x: AtariSafetyCostWrapper(AtariWrapper(x))
+            wrapper_class = lambda x: AtariSafetyCostWrapper(AtariWrapper(x, clip_reward=False))
             return wrapper_class
         return None
 

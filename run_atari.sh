@@ -1,7 +1,7 @@
 #! /bin/bash
 env_source="Atari"
-map="Asteroids"
-im="RND"
+map="MontezumaRevenge"
+im="NoModel"
 rs="NoRS"
 steps=61440000
 recs="1500,2250,3000,7500,15000,30000"
