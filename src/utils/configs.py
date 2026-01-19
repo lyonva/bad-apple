@@ -202,6 +202,7 @@ class TrainingConfig():
             features_dim=self.features_dim,
             activation_fn=cnn_activation_fn,
             model_type=self.policy_cnn_type,
+            n_linear=self.policy_mlp_layers,
         )
 
         model_features_extractor_common_kwargs = dict(

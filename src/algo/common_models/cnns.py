@@ -17,6 +17,7 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
                  features_dim: int,
                  activation_fn: Type[nn.Module],
                  model_type: int,
+                 n_linear: int,
     ):
         if isinstance(observation_space, Dict):
             observation_space = list(observation_space.values())[0]
@@ -202,11 +203,12 @@ class CnnFeaturesExtractor(CustomCnnFeaturesExtractor):
     def __init__(self, observation_space,
                  features_dim: int = 256,
                  activation_fn: Type[nn.Module] = nn.ReLU,
-                 model_type: int = 0):
+                 model_type: int = 0,
+                 n_linear: int = 1,):
         # Specifying normalization type
         self.norm_type = NormType.NoNorm
         super().__init__(observation_space, features_dim,
-                         activation_fn, model_type)
+                         activation_fn, model_type, n_linear)
 
 
 class BatchNormCnnFeaturesExtractor(CustomCnnFeaturesExtractor):
@@ -214,11 +216,12 @@ class BatchNormCnnFeaturesExtractor(CustomCnnFeaturesExtractor):
     def __init__(self, observation_space,
                  features_dim: int = 256,
                  activation_fn: Type[nn.Module] = nn.ReLU,
-                 model_type: int = 0):
+                 model_type: int = 0,
+                 n_linear: int = 1,):
         # Specifying normalization type
         self.norm_type = NormType.BatchNorm
         super().__init__(observation_space, features_dim,
-                         activation_fn, model_type)
+                         activation_fn, model_type, n_linear)
 
 
 class LayerNormCnnFeaturesExtractor(CustomCnnFeaturesExtractor):
@@ -226,9 +229,10 @@ class LayerNormCnnFeaturesExtractor(CustomCnnFeaturesExtractor):
     def __init__(self, observation_space,
                  features_dim: int = 256,
                  activation_fn: Type[nn.Module] = nn.ReLU,
-                 model_type: int = 0):
+                 model_type: int = 0,
+                 n_linear: int = 1,):
         # Specifying normalization type
         self.norm_type = NormType.LayerNorm
         super().__init__(observation_space, features_dim,
-                         activation_fn, model_type)
+                         activation_fn, model_type, n_linear)
 

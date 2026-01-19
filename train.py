@@ -225,6 +225,7 @@ def train(config):
 @click.option('--model_latents_dim', default=256, type=int,
               help='Dimensions of latent features in the dynamics model\'s MLP')
 @click.option('--policy_cnn_type', default=0, type=int, help='CNN Structure ([0-2] from small to large)')
+@click.option('--policy_cnn_layers', default=1, type=int, help='Number of latent layers used in the CNN, shared between all')
 @click.option('--policy_mlp_layers', default=1, type=int, help='Number of latent layers used in the policy\'s MLP')
 @click.option('--policy_cnn_norm', default='BatchNorm', type=str, help='Normalization type for policy/value nets\' CNN')
 @click.option('--policy_mlp_norm', default='BatchNorm', type=str, help='Normalization type for policy/value nets\' MLP')
