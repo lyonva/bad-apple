@@ -16,6 +16,7 @@ analysis/*.csv
 analysis/*.png
 analysis/*/*.csv
 analysis/*/*.png
+analysis/config.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
