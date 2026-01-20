@@ -28,6 +28,7 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
         self.n_input_size = observation_space.shape[1]
         self.activation_fn = activation_fn()
         self.model_type = model_type
+        self.n_linear = n_linear
 
         n_flatten = None
         if model_type == 0:
@@ -123,11 +124,16 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
                 sample = th.as_tensor(observation_space.sample()[None]).float()
                 n_flatten = self.cnn(sample).shape[1]
 
-        self.linear_layer = nn.Sequential(
-            nn.Linear(n_flatten, features_dim),
-            NormType.get_norm_layer_1d(self.norm_type, features_dim),
-            activation_fn(),
-        )
+        modules = [ nn.Linear(n_flatten, features_dim),
+                        NormType.get_norm_layer_1d(self.norm_type, features_dim),
+                        activation_fn()
+                    ]
+        for _ in range(self.n_linear-1):
+            modules += [ nn.Linear(features_dim, features_dim),
+                            NormType.get_norm_layer_1d(self.norm_type, features_dim),
+                            activation_fn()
+                        ]
+        self.linear_layer = nn.Sequential(*modules)
 
     def build_impala_cnn(self, depths=None):
         """
