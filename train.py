@@ -201,7 +201,7 @@ def train(config):
               help='EMA smoothing factor for averaging embedding distances (NGU)')
 @click.option('--rnd_use_policy_emb', default=1, type=int,
               help='Whether to use the embeddings learned by policy/value nets as inputs (RND)')
-@click.option('--rnd_err_norm', default=1, type=int,
+@click.option('--rnd_err_norm', default=0, type=int,
               help='Normalized RND errors by: [0] No normalization [1] Standardization [2] Min-max normalization [3] Standardization w.o. subtracting the mean')
 @click.option('--rnd_err_momentum', default=-1, type=float,
               help='EMA smoothing factor for RND error normalization (-1: total average)')

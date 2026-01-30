@@ -61,6 +61,7 @@ class IntrinsicRewardBaseModel(nn.Module):
         self.activation_fn = activation_fn
         self.optimizer_class = optimizer_class
         self.optimizer_kwargs = optimizer_kwargs
+        self.n_linear = self.model_mlp_layers
 
         self.model_rnn_kwargs = dict(
             input_size=self.model_features_dim,

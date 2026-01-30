@@ -86,7 +86,7 @@ class CustomCnnFeaturesExtractor(BaseFeaturesExtractor):
                 NormType.get_norm_layer_2d(self.norm_type, 64, image_sizes[1]),
                 activation_fn(),
 
-                nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(4, 4), stride=1, padding=0),
+                nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=1, padding=0),
                 NormType.get_norm_layer_2d(self.norm_type, 64, image_sizes[2]),
                 activation_fn(),
 

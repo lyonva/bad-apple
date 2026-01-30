@@ -1,12 +1,14 @@
+from collections.abc import Mapping
 import multiprocessing as mp
 import warnings
 from typing import Callable, List, Optional, Union, Sequence, Dict
 from typing import Any, Callable, Optional, Union
 
 import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 from numpy import ndarray
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage, VecEnvWrapper
 from stable_baselines3.common.vec_env.base_vec_env import tile_images, VecEnvStepReturn
 from stable_baselines3.common.vec_env.subproc_vec_env import _stack_obs
 from stable_baselines3.common.env_util import is_wrapped
@@ -19,6 +21,7 @@ from stable_baselines3.common.vec_env.base_vec_env import (
     VecEnvStepReturn,
 )
 from stable_baselines3.common.vec_env.patch_gym import _patch_env
+from stable_baselines3.common.vec_env.stacked_observations import StackedObservations
 
 def _cworker(
     remote: mp.connection.Connection,
@@ -292,3 +295,43 @@ class CustomSubprocVecEnv(VecEnv):
         """
         indices = self._get_indices(indices)
         return [self.remotes[i] for i in indices]
+
+class CustomVecFrameStack(VecEnvWrapper):
+    """
+    Frame stacking wrapper for vectorized environment. Designed for image observations.
+
+    :param venv: Vectorized environment to wrap
+    :param n_stack: Number of frames to stack
+    :param channels_order: If "first", stack on first image dimension. If "last", stack on last dimension.
+        If None, automatically detect channel to stack over in case of image observation or default to "last" (default).
+        Alternatively channels_order can be a dictionary which can be used with environments with Dict observation spaces
+    """
+
+    def __init__(self, venv: VecEnv, n_stack: int, channels_order: str | Mapping[str, str] | None = None) -> None:
+        assert isinstance(
+            venv.observation_space, (spaces.Box, spaces.Dict)
+        ), "VecFrameStack only works with gym.spaces.Box and gym.spaces.Dict observation spaces"
+
+        self.stacked_obs = StackedObservations(venv.num_envs, n_stack, venv.observation_space, channels_order)
+        observation_space = self.stacked_obs.stacked_observation_space
+        super().__init__(venv, observation_space=observation_space)
+    
+    def step_wait(
+            self,
+        ) -> tuple[
+            np.ndarray | dict[str, np.ndarray],
+            np.ndarray,
+            np.ndarray,
+            list[dict[str, Any]],
+        ]:
+            observations, ext_rew, int_rew, dones, infos = self.venv.step_wait()
+            observations, infos = self.stacked_obs.update(observations, dones, infos)  # type: ignore[arg-type]
+            return observations, ext_rew, int_rew, dones, infos
+        
+    def reset(self) -> np.ndarray | dict[str, np.ndarray]:
+            """
+            Reset all environments
+            """
+            observation = self.venv.reset()
+            observation = self.stacked_obs.reset(observation)  # type: ignore[arg-type]
+            return observation

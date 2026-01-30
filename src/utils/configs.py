@@ -15,7 +15,7 @@ from datetime import datetime
 
 from src.algo.common_models.cnns import BatchNormCnnFeaturesExtractor, LayerNormCnnFeaturesExtractor, \
     CnnFeaturesExtractor
-from src.env.subproc_vec_env import CustomSubprocVecEnv
+from src.env.subproc_vec_env import CustomSubprocVecEnv, CustomVecFrameStack
 from src.utils.enum_types import EnvSrc, NormType, ModelType, ShapeType
 from wandb.integration.sb3 import WandbCallback
 
@@ -40,7 +40,7 @@ class TrainingConfig():
         if self.env_source == EnvSrc.MiniGrid and not game_name.startswith('MiniGrid-'):
             env_name = f'MiniGrid-{game_name}-v0'
         if self.env_source == EnvSrc.Atari:
-            env_name = f'ALE/{game_name}-v5'
+            env_name = f'{game_name}NoFrameskip-v4'
         self.env_name = env_name
         self.project_name = env_name if project_name is None else project_name
 
@@ -115,8 +115,9 @@ class TrainingConfig():
                 monitor_dir=None,
                 wrapper_class=wrapper_class,
                 vec_env_cls=CustomSubprocVecEnv,
-                # env_kwargs={"max_steps":self.max_episode_steps},
+                env_kwargs={"max_num_frames_per_episode":self.max_episode_steps},
             )
+            venv = CustomVecFrameStack(venv, 4)
         else:
             raise NotImplementedError
 
@@ -202,7 +203,7 @@ class TrainingConfig():
             features_dim=self.features_dim,
             activation_fn=cnn_activation_fn,
             model_type=self.policy_cnn_type,
-            n_linear=self.policy_mlp_layers,
+            n_linear=self.policy_cnn_layers,
         )
 
         model_features_extractor_common_kwargs = dict(
