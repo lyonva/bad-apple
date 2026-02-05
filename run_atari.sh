@@ -2,15 +2,15 @@
 
 map="Asteroids"
 rs="NoRS"
-im="NoModel"
+im="RND"
 
 seeds=(1 2 3 4 5)
 
 dgrm=10
-pies_decay=2500
+pies_decay=2000
 
-steps=40960000
-recs="2500,5000,7500,10000"
+steps=16384000
+recs="1000,2000,3000,4000"
 
 for seed in ${seeds[@]}; do
     python train.py --env_source="Atari" --game_name="$map" --num_processes=32 --policy_cnn_type=1 --model_cnn_type=1 --features_dim=512 --latents_dim=512 \
