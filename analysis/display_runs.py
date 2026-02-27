@@ -2,6 +2,7 @@
 import click
 import os
 from os.path import join
+from utils import import_config_module, get_map_snaps
 
 # snap_dict = {
 #     "MiniGrid-Empty-16x16-v0" : [250,500,1250,2500,5000],
@@ -12,16 +13,11 @@ from os.path import join
 #     "MiniGrid-MultiRoom-N4-S5-v0" : [500,1000,2500,5000,10000],
 # }
 
-snap_dict = {
-    "MiniGrid-Empty-16x16-v0" : [1000],
-    "MiniGrid-DoorKey-8x8-v0" : [1000],
-    "MiniGrid-RedBlueDoors-8x8-v0" : [2000],
-    "MiniGrid-FourRooms-v0" : [2000],
-    "MiniGrid-LavaCrossingS11N5-v0" : [2000],
-    "MiniGrid-MultiRoom-N4-S5-v0" : [2000],
-}
+def display_runs(dir, config_file):
+    config = import_config_module(config_file)
+    default_snaps = config.default_snaps
+    maps_snapshot = config.maps_snapshot
 
-def display_runs(dir):
     maps = [ f.name for f in os.scandir(dir) if f.is_dir() ]
 
     min_seed = 9999999
@@ -30,7 +26,7 @@ def display_runs(dir):
     all_techs = set()
     for map in maps:
         map_dir = join(dir, map)
-        snaps = snap_dict[map]
+        snaps = get_map_snaps(map, maps_snapshot, default_snaps)
         runs = [ f.name for f in os.scandir(map_dir) if f.is_dir() ]
         
         for run in runs:
@@ -60,10 +56,11 @@ def display_runs(dir):
 @click.command()
 # Testing params
 @click.option('--dir', default="logs", type=str, help='Directory with the training logs')
+@click.option('--config', default='config', type=str, help='Config file')
 def main(
-    dir,
+    dir, config
 ):
-    display_runs(dir)
+    display_runs(dir, config)
     
 
 if __name__ == '__main__':

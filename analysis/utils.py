@@ -2,10 +2,28 @@ import pandas as pd
 import os
 import shutil
 import pickle
+import importlib
+import sys
+import os
+
+def import_config_module(config_file, dir=""):
+    """Import a module given its name and file path."""
+    module_name = config_file
+    file_path = os.path.join(dir, f"{config_file}.py")
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+def get_map_snaps(map_name, maps_snapshot, default_snaps):
+    if map_name in maps_snapshot.keys():
+        return maps_snapshot[map_name]
+    return default_snaps
 
 def load_all_training_data(path, attach_params = []):
     dirs = [a for a in os.listdir(path) if os.path.isdir(os.path.join(path, a))]
-    maps = ["-".join(x.split("-")[1:-1]) for x in dirs]
+    maps = ["-".join(x.split("-")[1:-1]) if "Minigrid" in x else x for x in dirs]
     df = pd.DataFrame()
     
     for dir, map in zip(dirs, maps):
@@ -75,6 +93,6 @@ def fix_the_info_len_bug_training_data(path):
 if __name__ == "__main__":
     dir = "logs"
     # fix_the_info_len_bug_training_data(dir)
-    df = load_all_training_data(dir, attach_params=['collision_cost'])
+    df = load_all_training_data(dir)
     df.to_csv(os.path.join(dir, "alldata.csv")) 
     print(df)

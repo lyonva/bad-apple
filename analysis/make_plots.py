@@ -3,57 +3,34 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from utils import import_config_module
+from utils import import_config_module, get_map_snaps
 
-# ticks_dict = {
-#     "Empty-16x16" : [0,1000,2000,3000,4000,5000],
-#     "DoorKey-8x8" : [0,2000,4000,6000,8000,10000],
-#     "RedBlueDoors-8x8" : [0,2000,4000,6000,8000,10000],
-#     "FourRooms" : [0,5000,10000,15000,20000,25000],
-#     "LavaCrossingS11N5" : [0,2000,4000,6000,8000,10000],
-#     "MultiRoom-N4-S5" : [0,2000,4000,6000,8000,10000],
-# }
-
-ticks_dict = {
-    "Empty-16x16" : [0,200,400,600,800,1000],
-    "DoorKey-8x8" : [0,200,400,600,800,1000],
-    "RedBlueDoors-8x8" : [0,400,800,1200,1600,2000],
-    "FourRooms" : [0,400,800,1200,1600,2000],
-    "LavaCrossingS11N5" : [0,400,800,1200,1600,2000],
-    "MultiRoom-N4-S5" : [0,400,800,1200,1600,2000],
-}
-
-def make_plots(file, convolve, group):
+def make_plots(file, config_file, convolve, group):
     df = pd.read_csv(file)
-    # im = ["nomodel", "statecount", "grm"]
-    # im_name = ["No IM", "State Count", "GRM"]
-    # im = ["nomodel", "statecount", "maxentropy", "icm", "rnd", "grm"]
-    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
-    # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
-    # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
-    # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
-    # im_name = ["No IM", "State Count", "GRM+SC", "ADOPES+SC", "PIES+SC"]
-    # im = ["nors+statecount", "nors+statecount+cir", "adopes+statecount+cir", "adopes+statecount+cirs"]
-    # im_name = ["State Count", "State Count CIR", "SC+ADOPES+CIR", "SC+ADOPES+CIRS"]
-    # im = ["NoRS+NoModel+cir+collision_cost0.25", "NoRS+NoModel+cir+collision_cost0.75", "NoRS+NoModel+cir+collision_cost2.0", "NoRS+NoModel+cir+collision_cost2.5"]
-    # im_name = ["Cost 0.25", "Cost 0.75", "Cost 2.0", "Cost 2.5"]
-    im = ["NoRS+NoModel+grm_delay1+int_rew_norm0", "NoRS+StateCount+grm_delay1+int_rew_norm0", "PBIM+StateCount+grm_delay1+int_rew_norm0", "PBIM+StateCount+grm_delay1+int_rew_norm1",
-          "GRM+StateCount+grm_delay1+int_rew_norm0", "GRM+StateCount+grm_delay1+int_rew_norm1", "GRM+StateCount+grm_delay10+int_rew_norm0", "GRM+StateCount+grm_delay10+int_rew_norm1"]
-    im_name = ["No IM", "IM", "PBIM no norm", "PBIM", "GRM D=1 no norm", "GRM D=1", "GRM D=10 no norm", "GRM D=10"]
-    df["im"] = df["im"].replace(im, im_name)
-    im = im_name
-    df = df.dropna(axis=0, subset=["iterations"])
+    config = import_config_module(config_file)
 
-    # atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ll_unique_positions", "rollout/ep_entropy:"]
-    # atts_name = ["Episode Reward", "Position Coverage", "Observation Coverage", "Entropy"]
-    # atts = ["rollout/ep_rew_mean", "rollout/ll_unique_states", "rollout/ep_entropy", "rollout/ll_cost_count"]
-    # atts_name = ["Episode Reward", "Position Coverage", "Entropy", "Total Constraint Violations"]
-    atts = ["rollout/ep_rew_mean", "rollout/ep_len_mean"]
-    atts_name = ["Average Episode Reward", "Average Episode Length"]
+    df = df.dropna(axis=0, subset=["iterations"])
+    # Atari: Remove iterations where no episodes end
+    df = df[df["rollout/ep_len_mean"] > 0]
+
+    atts = config.metrics
+    atts_name = config.metrics_name
     df = df.rename(columns=dict([(x, y) for x, y in zip(atts, atts_name)]))
 
-    # maps = ["Empty-16x16", "DoorKey-16x16", "RedBlueDoors-8x8", "FourRooms"]
-    # maps = ["Empty-16x16", "DoorKey-8x8", "RedBlueDoors-8x8", "FourRooms", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
-    maps = ["Empty-16x16", "DoorKey-8x8", "LavaCrossingS11N5", "MultiRoom-N4-S5"]
+    im = config.im
+    im_name = config.im_name
+    maps = config.maps
+    maps_name = config.maps_name
+    df = df.replace({"map" : dict([(x, y) for x, y in zip(maps, maps_name)]), "im" : dict([(x, y) for x, y in zip(im, im_name)])})
+    
+    ticks_dict = config.ticks_dict
+    ticks_dict = dict([(m, ticks_dict[ma]) for ma, m in zip(maps, maps_name) ])
+    
+    im = im_name
+    maps = maps_name
+
+    seeds = config.seeds
 
     df = df[["im", "iterations", "map", "seed"] + atts_name].set_index(["im", "iterations", "map", "seed"]).stack(future_stack=True).reset_index()
     df.columns = ["Model", "iterations", "map", "seed", "metric", "value"]
@@ -70,19 +47,45 @@ def make_plots(file, convolve, group):
     #         print( df.loc[(df["map"] == map) & (df["metric"] == metric) & (df["iterations"] == 1221), ["Model", "value"]].groupby("Model").mean()  )
 
     # Convolve the plots
+    # if convolve > 0:
+    #     mask = np.ones((convolve,))/convolve
+    #     new_df = []
+    #     for map in maps:
+    #         for seed in seeds:
+    #             for ims in im:
+    #                 for metric in atts_name:
+    #                     data = df[(df["map"]==map) & (df["Model"]==ims)  & (df["seed"]==seed) & (df["metric"]==metric)]["value"].to_numpy()
+    #                     iters_data = df[(df["map"]==map) & (df["Model"]==ims)  & (df["seed"]==seed) & (df["metric"]==metric)]["iterations"].to_numpy()
+    #                     data = data[:ticks_dict[map][-1]]
+    #                     conv_data = np.convolve(data, mask, mode='valid')
+    #                     conv_data = np.concatenate((conv_data, np.repeat(conv_data[-1], convolve-1)))
+    #                     conv_iters = np.convolve(iters_data, mask, mode='valid')
+    #                     conv_iters = np.concatenate((conv_iters, np.repeat(conv_iters[-1], convolve-1)))
+    #                     for i, v in zip(conv_iters, conv_data):
+    #                         new_df.append([ims, i, map, seed, metric, v])
+    #     df = pd.DataFrame(new_df, columns=["Model", "iterations", "map", "seed", "metric", "value"])
+
+    
     if convolve > 0:
         mask = np.ones((convolve,))/convolve
         new_df = []
         for map in maps:
-            for seed in range(1,df["seed"].max()+1):
+            max_iters = get_map_snaps(map, config.maps_snapshot, config.default_snaps)[-1]
+            for seed in seeds:
                 for ims in im:
                     for metric in atts_name:
-                        data = df[(df["map"]==map) & (df["Model"]==ims)  & (df["seed"]==seed) & (df["metric"]==metric)]["value"].to_numpy()
-                        data = data[:ticks_dict[map][-1]]
-                        conv_data = np.convolve(data, mask, mode='valid')
-                        conv_data = np.concatenate((conv_data, np.repeat(conv_data[-1], convolve-1)))
-                        for i, v in enumerate(conv_data):
-                            new_df.append([ims, i+1, map, seed, metric, v])
+                        data = df[(df["map"]==map) & (df["Model"]==ims)  & (df["seed"]==seed) & (df["metric"]==metric)]
+                        for i in range(1, max_iters+1):
+                            avg = data[(data["iterations"] > (i - convolve/2)) & (data["iterations"] < (i + convolve/2))]["value"].mean()
+                            new_df.append([ims, i, map, seed, metric, avg])
+
+
+                        # conv_data = np.convolve(data, mask, mode='valid')
+                        # conv_data = np.concatenate((conv_data, np.repeat(conv_data[-1], convolve-1)))
+                        # conv_iters = np.convolve(iters_data, mask, mode='valid')
+                        # conv_iters = np.concatenate((conv_iters, np.repeat(conv_iters[-1], convolve-1)))
+                        # for i, v in zip(conv_iters, conv_data):
+                        #     new_df.append([ims, i, map, seed, metric, v])
         df = pd.DataFrame(new_df, columns=["Model", "iterations", "map", "seed", "metric", "value"])
     
     
@@ -127,8 +130,9 @@ def make_plots(file, convolve, group):
                 else:
                     # ax.set_ylim((0,1))
                     # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
-                    ax.set_ylim((0.4,1))
-                    ax.set_yticks([0.4, 0.55, 0.7, 0.85, 1.0])
+                    # ax.set_ylim((0.4,1))
+                    # ax.set_yticks([0.4, 0.55, 0.7, 0.85, 1.0])
+                    pass
                 ax.set_xticks(ticks_dict[row_val])
             g.add_legend(ncol=len(sub_plot))
             g.tight_layout()
@@ -153,8 +157,9 @@ def make_plots(file, convolve, group):
                 elif metric == "Average Episode Length":
                     pass
                 else:
-                    ax.set_ylim((0,1))
-                    ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+                    pass
+                    # ax.set_ylim((0,1))
+                    # ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
                     # ax.set_ylim((0.4,1))
                     # ax.set_yticks([0.4, 0.55, 0.7, 0.85, 1.0])
                 ax.set_xlabel("Iterations")
@@ -166,13 +171,14 @@ def make_plots(file, convolve, group):
 
 @click.command()
 @click.option('--file', type=str, default="logs/alldata.csv", help='CSV file with the training statistics of all models')
+@click.option('--config', default='config', type=str, help='Config file')
 @click.option('--convolve', type=int, default=100, help='Size of convolution window')
 @click.option('--group', type=int, default=1, help='Whether to group the plots using FacetGrid')
 
 def main(
-    file, convolve, group,
+    file, config, convolve, group,
 ):
-    make_plots(file, convolve, group)
+    make_plots(file, config, convolve, group)
     
 
 if __name__ == '__main__':

@@ -154,7 +154,7 @@ def train(config):
 @click.option('--batch_size', default=256, type=int, help='Batch size')
 @click.option('--n_steps', default=128, type=int, help='Number of steps to run for each process per update')
 # Env params
-@click.option('--env_source', default='minigrid', type=str, help='minigrid or minigrid (no procgen support)')
+@click.option('--env_source', default='minigrid', type=str, help='minigrid or atari (no procgen support)')
 @click.option('--game_name', default="DoorKey-8x8", type=str, help='e.g. DoorKey-8x8, FourRooms, RedBlueDoors-8x8')
 @click.option('--project_name', required=False, type=str, help='Where to store training logs (wandb option)')
 @click.option('--map_size', default=5, type=int, help='Size of the minigrid room')

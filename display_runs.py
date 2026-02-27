@@ -9,8 +9,7 @@ from src.utils.enum_types import ModelType, ShapeType
 import pickle
 # from analysis.config import maps_snapshot as snap_dict
 # from analysis.config import distinguish_parameters as parameters
-import importlib
-import sys
+from analysis.utils import import_config_module, get_map_snaps
 
 def yes_or_no(question):
     while True:
@@ -20,96 +19,80 @@ def yes_or_no(question):
         if reply[:1] == 'n':
             return False
 
-def get_map_snaps(map_name, maps_snapshot, default_snaps):
-    if map_name in maps_snapshot.keys():
-        return maps_snapshot[map_name]
-    return default_snaps
-
-def import_from_path(module_name, file_path):
-    """Import a module given its name and file path."""
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
 def display_runs(config_file):
-    archive_dir = "analysis"
     log_dir = "logs"
+    archive_dir = "analysis"
 
-    config = import_from_path(config_file, f"./{archive_dir}/{config_file}.py")
+    config = import_config_module(config_file, dir=archive_dir)
     # print(dir(config))
 
     parameters = config.parameters
     maps_snapshot = config.maps_snapshot
     default_snaps = config.default_snaps
 
-    maps = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
+    dirs = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
 
     complete_runs = []
     incomplete_runs = []
     empty_dirs = []
 
-    for map in maps:
-        # print(30*"-")
-        # print(map)
-        model_snap_tags = get_map_snaps(map, maps_snapshot, default_snaps)
-        max_iter = model_snap_tags[-1]
+    for dir in dirs:        
 
-        logs = [ f.name for f in os.scandir(join(log_dir, map)) if f.is_dir() ]
+        logs = [ f.name for f in os.scandir(join(log_dir, dir)) if f.is_dir() ]
 
         for log in logs:
-            seeds = [ f.name for f in os.scandir(join(log_dir, map, log)) if f.is_dir() ]
-            if len(seeds) == 0: empty_dirs.append(join(log_dir, map, log))
+            seeds = [ f.name for f in os.scandir(join(log_dir, dir, log)) if f.is_dir() ]
+            if len(seeds) == 0: empty_dirs.append(join(log_dir, dir, log))
 
             for seed in seeds:
-                path_log = join(log_dir, map, log, seed)
+                path_log = join(log_dir, dir, log, seed)
                 # print(path_log)
                 code = 0
 
                 if len([ f.name for f in os.scandir(path_log) ]) == 0: empty_dirs.append(path_log)
 
-                if os.path.exists(join(path_log, "rollout.csv")) and os.path.isfile(join(path_log, "rollout.csv")):
-                    df = pd.read_csv(join(path_log, "rollout.csv"), usecols=range(4))
-                    iter = int( df["iterations"].max() )
-                    
-                    all_models = True
-                    # Check all model snapshot files are present
-                    for mst in model_snap_tags:
-                        if not(os.path.exists(join(path_log, f"snapshot-{mst}.zip"))):
-                            all_models = False
-                            code = 2
-                            break
-                    
-                    if all_models:
-                    # Try and get parameters
-                        if os.path.exists(join(path_log, "params.pkl")) and os.path.isfile(join(path_log, "params.pkl")):
-                            # try:
-                                with open(join(path_log, "params.pkl"), 'rb') as f:
-                                    loaded_params = dict(pickle.load(f))
-                                im = loaded_params["int_rew_source"]
-                                rs = loaded_params["int_shape_source"]
-                                ci = loaded_params["cost_as_ir"]
-                                pp = {}
-                                for param in parameters:
-                                    if param in loaded_params.keys():
-                                        pp[param] = loaded_params[param]
-                                id = loaded_params["run_id"]
-                                params_load = True
-                            # except:
-                            #     params_load = False
-                            #     code = 3
-                        else:
-                            params_load = False
-                            code = 3
-
-                        # print(im, id)
-                    if iter != max_iter:
-                        code = 4
-
+                if os.path.exists(join(path_log, "params.pkl")) and os.path.isfile(join(path_log, "params.pkl")):
+                    # try:
+                        with open(join(path_log, "params.pkl"), 'rb') as f:
+                            loaded_params = dict(pickle.load(f))
+                        im = loaded_params["int_rew_source"]
+                        rs = loaded_params["int_shape_source"]
+                        ci = loaded_params["cost_as_ir"]
+                        map = loaded_params["game_name"]
+                        model_snap_tags = get_map_snaps(map, maps_snapshot, default_snaps)
+                        max_iter = model_snap_tags[-1]
+                        pp = {}
+                        for param in parameters:
+                            if param in loaded_params.keys():
+                                pp[param] = loaded_params[param]
+                        id = loaded_params["run_id"]
+                        params_load = True
+                    # except:
+                    #     params_load = False
+                    #     code = 3
                 else:
-                    iter = 0
-                    code = 1
+                    params_load = False
+                    code = 3
+
+                if params_load:
+                    if os.path.exists(join(path_log, "rollout.csv")) and os.path.isfile(join(path_log, "rollout.csv")):
+                        df = pd.read_csv(join(path_log, "rollout.csv"), usecols=range(4))
+                        iter = int( df["iterations"].max() )
+                        
+                        all_models = True
+                        # Check all model snapshot files are present
+                        for mst in model_snap_tags:
+                            if not(os.path.exists(join(path_log, f"snapshot-{mst}.zip"))):
+                                all_models = False
+                                code = 2
+                                break
+                        
+                        if iter != max_iter:
+                            code = 4
+
+                    else:
+                        iter = 0
+                        code = 1
                 
                 if code == 0:
                     complete_runs.append( [ map, rs, im, ci, pp, id, log, path_log ] )
