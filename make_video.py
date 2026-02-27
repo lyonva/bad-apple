@@ -56,7 +56,7 @@ def make_video(config):
     vid_name = f"{config_env.game_name}-{os.path.basename(os.path.dirname(config.model))}"
     venv = VecVideoRecorder(venv, video_folder="analysis/",
         record_video_trigger=lambda x: True,
-        video_length=config.total_steps,
+        video_length=config.total_steps+1,
         name_prefix=vid_name)
 
     venv = model._wrap_env(venv)
