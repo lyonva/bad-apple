@@ -12,7 +12,7 @@ def make_plots(file, config_file, convolve, group):
 
     df = df.dropna(axis=0, subset=["iterations"])
     # Atari: Remove iterations where no episodes end
-    df = df[df["rollout/ep_len_mean"] > 0]
+    #df = df[df["rollout/ep_len_mean"] > 0]
 
     atts = config.metrics
     atts_name = config.metrics_name
@@ -25,7 +25,8 @@ def make_plots(file, config_file, convolve, group):
     df = df.replace({"map" : dict([(x, y) for x, y in zip(maps, maps_name)]), "im" : dict([(x, y) for x, y in zip(im, im_name)])})
     
     ticks_dict = config.ticks_dict
-    ticks_dict = dict([(m, ticks_dict[ma]) for ma, m in zip(maps, maps_name) ])
+    # ticks_dict = dict([(m, ticks_dict[ma]) for ma, m in zip(maps, maps_name) ])
+    map_threshold = config.map_threshold
     
     im = im_name
     maps = maps_name
@@ -34,6 +35,8 @@ def make_plots(file, config_file, convolve, group):
 
     df = df[["im", "iterations", "map", "seed"] + atts_name].set_index(["im", "iterations", "map", "seed"]).stack(future_stack=True).reset_index()
     df.columns = ["Model", "iterations", "map", "seed", "metric", "value"]
+
+    # print(df)
 
     # Make Position/State coverage relative to map
     # for map in maps:
@@ -75,6 +78,7 @@ def make_plots(file, config_file, convolve, group):
                 for ims in im:
                     for metric in atts_name:
                         data = df[(df["map"]==map) & (df["Model"]==ims)  & (df["seed"]==seed) & (df["metric"]==metric)]
+                        # print(map, ims, seed, metric, data)
                         for i in range(1, max_iters+1):
                             avg = data[(data["iterations"] > (i - convolve/2)) & (data["iterations"] < (i + convolve/2))]["value"].mean()
                             new_df.append([ims, i, map, seed, metric, avg])
@@ -93,7 +97,7 @@ def make_plots(file, config_file, convolve, group):
     # df = df[df["iterations"] % 100 == 0 ] # Speed up for testing
 
     if group>0:
-        sns.set_theme(style="ticks", rc={'font.family':'serif', 'font.serif':'Times New Roman'})
+        sns.set_theme(style="ticks", rc={'font.family':'serif'})
         
         # sub_plots = [["No IM", "State Count", "Max Entropy", "ICM"],
         #              ["No IM", "State Count", "GRM+SC", "ADOPES+SC"],
@@ -111,7 +115,7 @@ def make_plots(file, config_file, convolve, group):
         for i, sub_plot in enumerate(sub_plots):
             sub_df = df[ np.isin(df["Model"], sub_plot) ]
             g = sns.FacetGrid(sub_df, row="map", col="metric", row_order=maps, col_order=atts_name, sharex=False, sharey=False,
-                            margin_titles=True, legend_out=True, despine=False, height=2.5, aspect=1.6)
+                            margin_titles=True, legend_out=True, despine=False, height=2.5, aspect=1.6, errorbar="se")
             g.map_dataframe(sns.lineplot, x="iterations", y="value", hue="Model", hue_order=sub_plot, palette='CMRmap')
             g.set_titles(col_template="{col_name}", row_template="{row_name}")
             g.set_axis_labels("", "")
@@ -142,11 +146,13 @@ def make_plots(file, config_file, convolve, group):
         sns.set_theme(style="whitegrid", rc={'font.family':'serif', 'font.serif':'Times New Roman', 'figure.figsize':(9,6)})
         hues = ["black", "red", "lightgreen", "green", "lightblue", "blue", "pink", "purple"]
         lines = ["-", ":", "--", "-.", "--", "-.", "--", "-."]
-        for map in maps:
+        for i, map in enumerate(maps):
             for metric in atts_name:
                 sub_df = df[(df["map"]==map) & (df["metric"]==metric)]
-                ax = sns.lineplot(sub_df, x="iterations", y="value", hue="Model", style="Model", palette=hues, dashes=True)
+                ax = sns.lineplot(sub_df, x="iterations", y="value", hue="Model", style="Model", palette=hues, dashes=True, errorbar="se")
                 ax.set_xticks(ticks_dict[map])
+                # if metric == "Average Episode Reward":
+                #     ax.axline(xy1=(0,map_threshold[ i ]), slope=0, color = 'gray', ls='--')
                 if metric == "Entropy":
                     # ax.set_ylim((0,2))
                     # ax.set_yticks([0.0, 0.5, 1.0, 1.5, 2.0])

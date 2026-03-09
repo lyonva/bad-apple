@@ -24,8 +24,10 @@ def make_plots_exploration(file):
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "RND", "GRM"]
     # im = ["nors+nomodel", "nors+statecount", "nors+maxentropy", "nors+icm", "grm+statecount", "grm+maxentropy", "grm+icm", "adopes+statecount", "adopes+maxentropy", "adopes+icm"]
     # im_name = ["No IM", "State Count", "Max Entropy", "ICM", "GRM+SC", "GRM+ME", "GRM+ICM", "ADOPES+SC", "ADOPES+ME", "ADOPES+ICM"]
-    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
-    im_name = ["No IM", "State Count", "GRM", "ADOPS", "PIES"]
+    # im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount", "pies+statecount"]
+    # im_name = ["No IM", "State Count", "GRM", "ADOPS", "PIES"]
+    im = ["nors+nomodel", "nors+statecount", "grm+statecount", "adopes+statecount"]
+    im_name = ["No IM", "State Count", "GRM", "ADOPS"]
     df["im"] = df["im"].replace(im, im_name)
     im = im_name
     df = df.dropna(axis=0, subset=["iterations"])
@@ -70,13 +72,13 @@ def make_plots_exploration(file):
     #              ["No IM", "Max Entropy", "GRM+ME"],
     #              ["No IM", "ICM", "GRM+ICM"]
     # ]
-    sub_plots = [["No IM", "State Count", "GRM", "ADOPS", "PIES"]]
+    sub_plots = [["No IM", "State Count", "GRM", "ADOPS"]]
 
     for i, sub_plot in enumerate(sub_plots):
         sub_df = df[ np.isin(df["im"], sub_plot) ]
         g = sns.FacetGrid(sub_df, row="map", col="metric", row_order=maps, col_order=atts_name, sharex=False, sharey=False,
                         margin_titles=True, legend_out=True, despine=False, height=2.5, aspect=1.6)
-        g.map_dataframe(sns.lineplot, x="iterations", y="value", hue="im", hue_order=sub_plot, palette='CMRmap')
+        g.map_dataframe(sns.lineplot, x="iterations", y="value", hue="im", hue_order=sub_plot, palette='CMRmap', errorbar="se")
         g.set_titles(col_template="{col_name}", row_template="{row_name}")
         g.set_axis_labels("", "")
         g.add_legend(ncol=len(sub_plot))

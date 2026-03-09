@@ -10,6 +10,7 @@ from minigrid.core.world_object import Goal, Door, Key, Ball, Box
 from minigrid.core.grid import Grid, Wall
 from minigrid.core.constants import COLOR_NAMES, DIR_TO_VEC
 from minigrid.core.roomgrid import RoomGrid
+from minigrid.core.mission import MissionSpace
 from minigrid import register
 
 class CustomDoorKeyEnv(MiniGridEnv):
@@ -1115,4 +1116,73 @@ class ObstructedMaze_Full_V3(CustomObstructedMazeEnv):
 register(
     id="MiniGrid-ObstructedMaze-Full-V3-v0",
     entry_point="src.env.minigrid_envs:ObstructedMaze_Full_V3"
+)
+
+class EmptyCenter(MiniGridEnv):
+    """
+    ## Description
+
+    Empty but goal starts in the center, and agent is randomly spawned in one of the corners of the room
+
+    """
+
+    def __init__(self,
+            size=7,
+            max_steps: int | None = None,
+            **kwargs):
+        
+        mission_space = MissionSpace(mission_func=self._gen_mission)
+
+        if max_steps is None:
+            max_steps = 4 * size**2
+
+        super().__init__(
+            mission_space=mission_space,
+            grid_size=size,
+            # Set this to True for maximum speed
+            see_through_walls=True,
+            max_steps=max_steps,
+            **kwargs,
+        )
+    
+    @staticmethod
+    def _gen_mission():
+        return "get to the green goal square"
+    
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place a goal square in the bottom-right corner
+        self.put_obj(Goal(), width//2, height//2)
+
+        # Place the agent
+        start = self._rand_int(0, 4)
+        row = 1 if start < 2 else height - 2
+        col = 1 if start % 2 == 0 else width - 2
+        # ori = 0 if start % 2 == 0 else 2
+
+        self.place_agent(top=(row, col), size=(1,1))
+
+        self.mission = "get to the green goal square"
+
+class EmptyCenter7x7(EmptyCenter):
+    def __init__(self, **kwargs):
+        super().__init__(size=7, **kwargs)
+
+class EmptyCenter15x15(EmptyCenter):
+    def __init__(self, **kwargs):
+        super().__init__(size=15, **kwargs)
+
+register(
+    id="MiniGrid-EmptyCenter-7x7-v0",
+    entry_point="src.env.minigrid_envs:EmptyCenter7x7"
+)
+
+register(
+    id="MiniGrid-EmptyCenter-15x15-v0",
+    entry_point="src.env.minigrid_envs:EmptyCenter15x15"
 )

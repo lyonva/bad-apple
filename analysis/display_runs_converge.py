@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from utils import import_config_module, get_map_snaps
+from scipy.stats import ttest_1samp, sem
 
-def display_runs_converge(file, config_file, forgive):
+def display_runs_converge(file, config_file, confidence, hold, window):
     df = pd.read_csv(file)
     config = import_config_module(config_file)
 
@@ -40,11 +41,10 @@ def display_runs_converge(file, config_file, forgive):
 
 
     # First show iteration where it converges
-    max_combo = 25
-
     print("-"*10 + "Rollout for convergence" + "-"*10)
-    for map, thres in zip(maps, map_threshold):
-        print(f"{map:35}" + "|".join( [ f"{s:5d}" for s in range(min_seed, max_seed+1) ] ) + f"|               avg|count")
+    for map, thres, max_length in zip(maps, map_threshold, maps_length):
+        print(f"{map:35}" + "|".join( [ f"{s:5d}" for s in range(min_seed, max_seed+1) ] ) + f"|                avg|                rel|count")
+
 
         for im in im_name:
             avgs = []
@@ -53,22 +53,29 @@ def display_runs_converge(file, config_file, forgive):
             for seed in range(min_seed, max_seed+1):
                 sub_df = df.loc[(df["map"]==map) & (df["im"]==im) & (df["seed"]==seed), ["iterations", "rollout/ep_rew_mean"]]
                 current_combo = 0
-                current_idx = 0
-                for i, row in sub_df.iterrows():
-                    if row["rollout/ep_rew_mean"] > (forgive * thres):
-                        if current_idx == 0: current_idx = row["iterations"]
+                current_idx = -1
+                for i in range(window, max_length):
+                    sequence = sub_df[(sub_df["iterations"]<=i) & (sub_df["iterations"]>i-window)]["rollout/ep_rew_mean"].to_numpy()
+                    _, pvalue = ttest_1samp(sequence, thres, alternative='greater')
+
+                    if pvalue/2 < (1 - confidence):
+                        if current_combo == 0:
+                            current_idx = i
                         current_combo += 1
-                        if current_combo >= max_combo: break
+                        if current_combo >= hold: break
                     else:
-                        current_combo = current_idx = 0
-                if current_combo < max_combo: current_idx = 0
+                        current_combo = 0
+                        current_idx = -1
+            
+                if current_combo < hold: current_idx = -1
                 steps.append(int(current_idx))
+
                 if current_idx > 0:
                     avgs.append(current_idx)
                     count += 1
             avg = 0 if len(avgs) == 0 else np.mean(avgs)
-            std = 0 if len(avgs) < 2 else np.std(avgs)
-            print(f"{im:35}" + "|".join( [ f"{a:5d}" for a in steps ]) + f"|{avg:>8.2f} ±{std:>8.2f}" + f"|{count:3d}/{max_seed-min_seed+1:3d}" )
+            std = 0 if len(avgs) < 2 else sem(avgs)
+            print(f"{im:35}" + "|".join( [ f"{a:5d}" for a in steps ]) + f"|{avg:>8.2f} ({std:>8.2f})" + f"|{(avg/max_length)*100:>7.2f}% ({(std/max_length)*100:>7.2f}%)" + f"|{count:3d}/{max_seed-min_seed+1:3d}" )
         print()
 
     print()
@@ -80,7 +87,7 @@ def display_runs_converge(file, config_file, forgive):
         df.loc[df["map"] == map, "iterations"] /= length
 
 
-    df = df[df["iterations"] > 0.90] # Only last 5% training
+    df = df[df["iterations"] > 0.95] # Only last 5% training
 
     
     for map, thres in zip(maps, map_threshold):
@@ -90,7 +97,7 @@ def display_runs_converge(file, config_file, forgive):
             count = 0
             for seed in range(min_seed, max_seed+1):
                 avg = df.loc[(df["map"]==map) & (df["im"]==im) & (df["seed"]==seed), "rollout/ep_rew_mean"].mean()
-                if avg >= (forgive * thres): count += 1
+                if avg >= (thres): count += 1
                 avgs.append(avg)
             print(f"{im:35}" + "|".join( [ f"{a:6.2f}" for a in avgs ]) + f"|{np.mean(avgs):9.4f}±{np.std(avgs):>9.4f}" + f"\t({count}/{max_seed-min_seed+1})" )
         print()
@@ -99,12 +106,14 @@ def display_runs_converge(file, config_file, forgive):
 @click.command()
 @click.option('--file', type=str, default="logs/alldata.csv", help='CSV file with the training statistics of all models')
 @click.option('--config', default='config', type=str, help='Config file')
-@click.option('--forgive', default=0.95, type=float, help='Forgiveness of deviation from the optimal reward')
+@click.option('--confidence', default=0.95, type=float, help='Test confidence level')
+@click.option('--hold', default=50, help="Number of training episodes for which the agent must hold the statistical significance test")
+@click.option('--window', default=100, help='Number of most recent data points to use in test')
 
 def main(
-    file, config, forgive
+    file, config, confidence, hold, window
 ):
-    display_runs_converge(file, config, forgive)
+    display_runs_converge(file, config, confidence, hold, window)
     
 
 if __name__ == '__main__':

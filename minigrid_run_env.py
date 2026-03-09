@@ -2,13 +2,15 @@ from minigrid.manual_control import ManualControl
 from minigrid.minigrid_env import MiniGridEnv
 import gymnasium as gym
 import minigrid
+from src.env.minigrid_envs import *
 
 # env = gym.make("MiniGrid-Empty-16x16-v0",render_mode="human")
 # env = gym.make("MiniGrid-DoorKey-8x8-v0",render_mode="human")
 # env = gym.make("MiniGrid-FourRooms-v0",render_mode="human")
 # env = gym.make("MiniGrid-RedBlueDoors-8x8-v0",render_mode="human")
 # env = gym.make("MiniGrid-DoorKey-16x16-v0",render_mode="human")
-env = gym.make("MiniGrid-KeyCorridorS3R2-v0",render_mode="human")
+# env = gym.make("MiniGrid-KeyCorridorS3R2-v0",render_mode="human")
+env = gym.make("MiniGrid-EmptyCenter-15x15-v0", render_mode="human")
 
 # Manual seed
 # env.reset(seed=23)
