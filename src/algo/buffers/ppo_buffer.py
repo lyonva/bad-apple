@@ -146,7 +146,7 @@ class PPORolloutBuffer(BaseBuffer):
         # TD(lambda) estimator, see Github PR #375 or "Telescoping in TD(lambda)"
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
         self.ext_returns = self.ext_advantages + self.ext_values 
-        self.int_return = self.int_advantages + self.int_values
+        self.int_returns = self.int_advantages + self.int_values
 
         # Normalize advantages per rollout buffer
         if self.adv_norm:
