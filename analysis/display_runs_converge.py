@@ -27,10 +27,11 @@ def display_runs_converge(file, config_file, confidence, hold, window):
     # map_threshold = [0.96927, 0.96078, 0.98043, 0.66324, 0.95155, 0.69076]
 
     maps = config.maps
+    maps_name = config.maps_name
     default_snaps = config.default_snaps
     maps_snapshot = config.maps_snapshot
 
-    maps_length = [get_map_snaps(map, maps_snapshot, default_snaps)[-1] for map in maps]
+    maps_length = [get_map_snaps(map, maps_snapshot, default_snaps)[-1] for map in maps_name]
     map_threshold = config.map_threshold
 
     min_seed = config.seeds[0]
@@ -38,7 +39,6 @@ def display_runs_converge(file, config_file, confidence, hold, window):
 
     # Atari: Remove iterations where no episodes end
     df = df[df["rollout/ep_len_mean"] > 0]
-
 
     # First show iteration where it converges
     print("-"*10 + "Rollout for convergence" + "-"*10)
@@ -56,14 +56,20 @@ def display_runs_converge(file, config_file, confidence, hold, window):
                 current_idx = -1
                 for i in range(window, max_length):
                     sequence = sub_df[(sub_df["iterations"]<=i) & (sub_df["iterations"]>i-window)]["rollout/ep_rew_mean"].to_numpy()
-                    _, pvalue = ttest_1samp(sequence, thres, alternative='greater')
+                    
+                    if len(sequence) > 1:
+                        _, pvalue = ttest_1samp(sequence, thres, alternative='greater')
 
-                    if pvalue/2 < (1 - confidence):
-                        if current_combo == 0:
-                            current_idx = i
-                        current_combo += 1
-                        if current_combo >= hold: break
+                        if pvalue/2 < (1 - confidence):
+                            if current_combo == 0:
+                                current_idx = i
+                            current_combo += 1
+                            if current_combo >= hold: break
+                        else:
+                            current_combo = 0
+                            current_idx = -1
                     else:
+                        # Instant fail if too short
                         current_combo = 0
                         current_idx = -1
             

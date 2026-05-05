@@ -10,7 +10,8 @@ from src.env.minigrid_envs import *
 # env = gym.make("MiniGrid-RedBlueDoors-8x8-v0",render_mode="human")
 # env = gym.make("MiniGrid-DoorKey-16x16-v0",render_mode="human")
 # env = gym.make("MiniGrid-KeyCorridorS3R2-v0",render_mode="human")
-env = gym.make("MiniGrid-EmptyCenter-15x15-v0", render_mode="human")
+# env = gym.make("MiniGrid-EmptyCenter-21x21-v0", render_mode="human")
+env = gym.make("MiniGrid-CliffWalk-12x9-S25-v0", render_mode="human")
 
 # Manual seed
 # env.reset(seed=23)

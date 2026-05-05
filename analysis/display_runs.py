@@ -18,15 +18,16 @@ def display_runs(dir, config_file):
     default_snaps = config.default_snaps
     maps_snapshot = config.maps_snapshot
 
-    maps = [ f.name for f in os.scandir(dir) if f.is_dir() ]
+    maps = config.maps
+    maps_name = config.maps_name
 
     min_seed = 9999999
     max_seed = 0
     all_runs = dict([(map, {}) for map in maps])
     all_techs = set()
-    for map in maps:
+    for map, map_name in zip(maps, maps_name):
         map_dir = join(dir, map)
-        snaps = get_map_snaps(map, maps_snapshot, default_snaps)
+        snaps = get_map_snaps(map_name, maps_snapshot, default_snaps)
         runs = [ f.name for f in os.scandir(map_dir) if f.is_dir() ]
         
         for run in runs:

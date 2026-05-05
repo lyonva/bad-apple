@@ -6,12 +6,14 @@ The code was created based on the official implementation of gym-minigrid
 
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.envs import DoorKeyEnv
-from minigrid.core.world_object import Goal, Door, Key, Ball, Box
+from minigrid.core.world_object import Goal, Door, Key, Ball, Box, Lava
 from minigrid.core.grid import Grid, Wall
 from minigrid.core.constants import COLOR_NAMES, DIR_TO_VEC
 from minigrid.core.roomgrid import RoomGrid
 from minigrid.core.mission import MissionSpace
 from minigrid import register
+from gymnasium.core import ActType, ObsType
+from typing import Any, Iterable, SupportsFloat, TypeVar
 
 class CustomDoorKeyEnv(MiniGridEnv):
 
@@ -1175,7 +1177,16 @@ class EmptyCenter7x7(EmptyCenter):
 
 class EmptyCenter15x15(EmptyCenter):
     def __init__(self, **kwargs):
-        super().__init__(size=15, **kwargs)
+        super().__init__(size=15, **kwargs)\
+
+class EmptyCenter21x21(EmptyCenter):
+    def __init__(self, **kwargs):
+        super().__init__(size=21, **kwargs)
+
+class EmptyCenter35x35(EmptyCenter):
+    def __init__(self, **kwargs):
+        super().__init__(size=35, **kwargs)
+
 
 register(
     id="MiniGrid-EmptyCenter-7x7-v0",
@@ -1185,4 +1196,98 @@ register(
 register(
     id="MiniGrid-EmptyCenter-15x15-v0",
     entry_point="src.env.minigrid_envs:EmptyCenter15x15"
+)
+
+register(
+    id="MiniGrid-EmptyCenter-21x21-v0",
+    entry_point="src.env.minigrid_envs:EmptyCenter21x21"
+)
+
+register(
+    id="MiniGrid-EmptyCenter-35x35-v0",
+    entry_point="src.env.minigrid_envs:EmptyCenter35x35"
+)
+
+
+class CliffWalkEnv(MiniGridEnv):
+    def __init__(self,
+        width=12,
+        height=9,
+        slip_proba=0.25,
+        max_steps : int | None = None,
+        **kwargs,
+    ):
+        self.goal_pos = (width - 2, height - 2)
+        self.slip_proba = slip_proba
+
+        mission_space = MissionSpace(mission_func=self._gen_mission)
+
+        if max_steps is None:
+            max_steps = 2 * width * height * int(1 / slip_proba)
+        
+        super().__init__(
+            mission_space=mission_space,
+            width=width,
+            height=height,
+            # Set this to True for maximum speed
+            see_through_walls=True,
+            max_steps=max_steps,
+            **kwargs,
+        )
+    
+    @staticmethod
+    def _gen_mission():
+        return "get to the green goal square"
+    
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place a goal square in the bottom-right corner
+        self.put_obj(Goal(), *self.goal_pos)
+
+        # Place the lava rows
+        for i in range(2, self.width - 2):
+            self.grid.set(i, self.height-2, Lava())
+
+        # Place the agent
+        self.agent_pos = (1, self.height-2)
+        self.agent_dir = 0
+        
+
+        self.mission = "get to the green goal square"
+    
+    def step(
+        self, action: ActType
+    ) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
+        prev_pos = self.agent_pos
+        obs, reward, terminated, truncated, info = super().step(action)
+        curr_pos = self.agent_pos
+        
+        # Slip if moving within the cliff
+        # Note this happens regardless of action
+        if (2 < prev_pos[0] < self.width - 2) and (2 < curr_pos[0] < self.width - 2):
+            if self._rand_float(0,1) < self.slip_proba:
+                # Agent slips down 1 tile
+                self.agent_pos = (curr_pos[0], curr_pos[1]+1)
+                
+                # Check lava
+                new_cell = self.grid.get(*self.agent_pos)
+                if new_cell is not None and new_cell.type == "lava":
+                    terminated = True
+
+        obs = self.gen_obs()
+
+        return obs, reward, terminated, truncated, info
+
+class CliffWalkEnv12x9S25(CliffWalkEnv):
+    def __init__(self, **kwargs):
+        super().__init__(width=12, height=9, slip_proba=0.25, **kwargs)
+
+register(
+    id="MiniGrid-CliffWalk-12x9-S25-v0",
+    entry_point="src.env.minigrid_envs:CliffWalkEnv12x9S25"
 )

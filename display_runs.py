@@ -29,6 +29,8 @@ def display_runs(config_file):
     parameters = config.parameters
     maps_snapshot = config.maps_snapshot
     default_snaps = config.default_snaps
+    map_names = config.maps_name
+    all_maps = config.maps
 
     dirs = [ f.name for f in os.scandir(log_dir) if f.is_dir() ]
 
@@ -59,7 +61,8 @@ def display_runs(config_file):
                         rs = loaded_params["int_shape_source"]
                         ci = loaded_params["cost_as_ir"]
                         map = loaded_params["game_name"]
-                        model_snap_tags = get_map_snaps(map, maps_snapshot, default_snaps)
+                        map_name = map if map not in all_maps else map_names[all_maps.index(map)]
+                        model_snap_tags = get_map_snaps(map_name, maps_snapshot, default_snaps)
                         max_iter = model_snap_tags[-1]
                         pp = {}
                         for param in parameters:
