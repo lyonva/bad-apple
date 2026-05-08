@@ -7,7 +7,7 @@ from torch import Tensor
 
 from src.utils.loggers import StatisticsLogger, LocalLogger
 from src.algo.ppo_rollout import PPORollout
-from src.utils.enum_types import ModelType, ShapeType
+from src.utils.enum_types import ModelType, ShapeType, CostObj
 
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -57,6 +57,9 @@ class PPOTrainer(PPORollout):
         grm_delay : int = 1,
         adopes_coef_inc : float = 0.01,
         pies_decay : int = 2000,
+        cost_critic : int = 0,
+        cost_objective : CostObj = CostObj.NoCO,
+        cost_limit : float = 0.0,
         cost_as_ir : int = 0,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
@@ -108,6 +111,9 @@ class PPOTrainer(PPORollout):
             grm_delay=grm_delay,
             adopes_coef_inc=adopes_coef_inc,
             pies_decay=pies_decay,
+            cost_critic=cost_critic,
+            cost_objective=cost_objective,
+            cost_limit=cost_limit,
             cost_as_ir=cost_as_ir,
             policy_kwargs=policy_kwargs,
             verbose=verbose,
@@ -204,7 +210,7 @@ class PPOTrainer(PPORollout):
                     if self.use_sde:
                         self.policy.reset_noise(self.batch_size)
 
-                    ext_values, int_values, log_prob, entropy, memories = \
+                    ext_values, int_values, cost_values, log_prob, entropy, memories = \
                         self.policy.evaluate_policy(
                             rollout_data.observations,
                             actions,
@@ -212,16 +218,21 @@ class PPOTrainer(PPORollout):
                         )
                     ext_values = ext_values.flatten()
                     int_values = int_values.flatten()
+                    cost_values = cost_values.flatten()
 
                     # Normalize advantage
                     ext_advantages = rollout_data.ext_advantages
                     int_advantages = rollout_data.int_advantages
+                    cost_advantages = rollout_data.cost_advantages
                     # Normalize Advangages per mini-batch
                     if self.adv_norm == 1:
                         ext_advantages = (ext_advantages - ext_advantages.mean()) / (ext_advantages.std() + self.adv_eps)
                         int_advantages = (int_advantages - int_advantages.mean()) / (int_advantages.std() + self.adv_eps)
+                        cost_advantages = (cost_advantages - cost_advantages.mean()) / (cost_advantages.std() + self.adv_eps)
                     # Combined advantage
                     advantages = self.adv_ext_coeff * ext_advantages + self.adv_int_coeff * int_advantages
+                    # TODO: Add method for combining reward advantages with cost
+
                     # ratio between old and new policy, should be one at the first iteration
                     ratio = th.exp(log_prob - rollout_data.old_log_prob)
                     # clipped surrogate loss
@@ -235,6 +246,7 @@ class PPOTrainer(PPORollout):
                         # No clipping
                         ext_values_pred = ext_values
                         int_values_pred = int_values
+                        cost_values_pred = cost_values
                     else:
                         # Clip the different between old and new value
                         # NOTE: this depends on the reward scaling
@@ -244,10 +256,14 @@ class PPOTrainer(PPORollout):
                         int_values_pred = rollout_data.old_int_values + th.clamp(
                             int_values - rollout_data.old_int_values, -clip_range_vf, clip_range_vf
                         )
+                        cost_values_pred = rollout_data.old_cost_values + th.clamp(
+                            cost_values - rollout_data.old_cost_values, -clip_range_vf, clip_range_vf
+                        )
                     # Value loss using the TD(gae_lambda) target
                     ext_value_loss = F.mse_loss(rollout_data.ext_returns, ext_values_pred)
                     int_value_loss = F.mse_loss(rollout_data.int_returns, int_values_pred)
-                    value_loss = ext_value_loss + int_value_loss
+                    cost_value_loss = F.mse_loss(rollout_data.cost_returns, cost_values_pred)
+                    value_loss = ext_value_loss + int_value_loss + cost_value_loss
 
                     # Entropy loss favor exploration
                     if entropy is None:

@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from src.algo.buffers.ppo_buffer import PPORolloutBuffer
 from src.utils.loggers import StatisticsLogger, LocalLogger
 from src.utils.common_func import set_random_seed
-from src.utils.enum_types import ModelType, EnvSrc, ShapeType
+from src.utils.enum_types import ModelType, EnvSrc, ShapeType, CostObj
 from src.env.subproc_vec_env import CustomVecTranspose
 
 from src.algo.reward_shaping.pbim import PBIM
@@ -69,6 +69,9 @@ class PPORollout(BaseAlgorithm):
         grm_delay : int,
         adopes_coef_inc : float,
         pies_decay : int,
+        cost_critic : int,
+        cost_objective : CostObj,
+        cost_limit : float,
         cost_as_ir : int,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
@@ -124,6 +127,9 @@ class PPORollout(BaseAlgorithm):
         self.grm_delay = grm_delay
         self.adopes_coef_inc = adopes_coef_inc
         self.pies_decay = pies_decay
+        self.cost_critic = cost_critic
+        self.cost_objective = cost_objective
+        self.cost_limit = cost_limit
         self.cost_as_ir = cost_as_ir
         self.env_source = env_source
         self.env_render = env_render
@@ -286,6 +292,7 @@ class PPORollout(BaseAlgorithm):
         
         self.global_lifelong_total_rewards = 0
         self.global_lifelong_total_costs = 0
+        self.global_lifelong_total_constraint_violations = 0
 
         self.global_episode_steps = np.zeros(self.n_envs, dtype=np.int32)
         if self.policy.use_status_predictor:
@@ -321,6 +328,7 @@ class PPORollout(BaseAlgorithm):
         self.rollout_done_episode_steps = 0
         self.rollout_sum_rewards = 0
         self.rollout_sum_costs = 0
+        self.rollout_constraint_violations = 0
         self.rollout_episode_unique_states = 0
         self.rollout_done_episode_unique_states = 0
 
@@ -478,6 +486,8 @@ class PPORollout(BaseAlgorithm):
                 self.episodic_trj_emb_history[env_id] = None
                 self.rollout_sum_rewards += self.global_episode_rewards[env_id]
                 self.rollout_sum_costs += self.global_episode_costs[env_id]
+                self.rollout_constraint_violations += 1 if self.global_episode_costs[env_id] > self.cost_limit else 0
+                self.global_lifelong_total_constraint_violations += 1 if self.global_episode_costs[env_id] > self.cost_limit else 0
                 self.rollout_done_episode_steps += self.global_episode_steps[env_id]
                 self.rollout_done_episode_unique_states += self.global_episode_unique_states[env_id]
                 self.rollout_done_episodes += 1
@@ -505,9 +515,11 @@ class PPORollout(BaseAlgorithm):
                 "time/total_timesteps": self.num_timesteps,
                 "rollout/ep_rew_mean": self.rollout_sum_rewards / (self.rollout_done_episodes + 1e-8),
                 "rollout/ep_cost_mean": self.rollout_sum_costs / (self.rollout_done_episodes + 1e-8),
+                "rollout/ep_constraint_violations" : self.rollout_constraint_violations,
                 "rollout/ep_len_mean": self.rollout_done_episode_steps / (self.rollout_done_episodes + 1e-8),
                 "rollout/ll_rew_count" : self.global_lifelong_total_rewards,
                 "rollout/ll_cost_count" : self.global_lifelong_total_costs,
+                "rollout/ll_constraint_violations" : self.global_lifelong_total_constraint_violations,
                 "rollout/ep_entropy" : np.mean(self.ppo_rollout_buffer.entropy),
                 # unique states / positions
                 "rollout/ep_unique_states": self.rollout_done_episode_unique_states / (
@@ -802,9 +814,9 @@ class PPORollout(BaseAlgorithm):
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
-                actions, ext_values, int_values, log_probs, policy_mems = \
+                actions, ext_values, int_values, cost_values, log_probs, policy_mems = \
                     self.policy.forward(obs_tensor, self._last_policy_mems)
-                _, _, _, entropy, _ = self.policy.evaluate_policy(obs_tensor, actions, self._last_policy_mems)
+                _, _, _, _, entropy, _ = self.policy.evaluate_policy(obs_tensor, actions, self._last_policy_mems)
                 self.entropy = entropy
                 actions = actions.cpu().numpy()
             # Rescale and perform action
@@ -826,7 +838,7 @@ class PPORollout(BaseAlgorithm):
             with th.no_grad():
                 # Compute value for the last timestep
                 new_obs_tensor = obs_as_tensor(new_obs, self.device)
-                _, new_ext_values, new_int_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
+                _, new_ext_values, new_int_values, new_cost_values, _, _ = self.policy.forward(new_obs_tensor, policy_mems)
 
             # IR Generation
             intrinsic_rewards, model_mems = \
@@ -875,6 +887,7 @@ class PPORollout(BaseAlgorithm):
                 dones,
                 ext_values,
                 int_values,
+                cost_values,
                 log_probs,
                 entropy,
                 self.curr_key_status,
@@ -889,7 +902,7 @@ class PPORollout(BaseAlgorithm):
                 self._last_model_mems = model_mems.detach().clone()
 
         ppo_rollout_buffer.compute_intrinsic_rewards()
-        ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, dones)
+        ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, new_cost_values, dones)
         callback.on_rollout_end()
         if (self.int_shape_source == ShapeType.ADOPES) or (self.int_shape_source == ShapeType.PIES):
             self.int_shape_model.on_rollout_end()
@@ -950,6 +963,7 @@ class PPORollout(BaseAlgorithm):
                   f'frames: {self.num_timesteps}  '
                   f'rew: {rew_mean:.6f}  '
                   f'int rew: {np.mean(self.ppo_rollout_buffer.intrinsic_rewards):.6f}  '
+                  f'cost: {np.mean(self.ppo_rollout_buffer.costs):.6f}  '
                   f'rollout: {collect_end_time - collect_start_time:.3f} sec  '
                   f'train: {train_end_time - train_start_time:.3f} sec')
 

@@ -89,6 +89,7 @@ class PPOModel(ActorCriticCnnPolicy):
         grm_delay: int = 0,
         dsc_obs_queue_len: int = 0,
         log_dsc_verbose: int = 0,
+        cost_critic : int = 0,
     ):
         self.run_id = run_id
         self.n_envs = n_envs
@@ -130,6 +131,7 @@ class PPOModel(ActorCriticCnnPolicy):
         self.model_cnn_features_extractor_kwargs = model_cnn_features_extractor_kwargs
         self.dsc_obs_queue_len = dsc_obs_queue_len
         self.log_dsc_verbose = log_dsc_verbose
+        self.cost_critic = cost_critic
 
         if isinstance(observation_space, gym.spaces.Dict):
             observation_space = observation_space["rgb"]
@@ -282,6 +284,16 @@ class PPOModel(ActorCriticCnnPolicy):
 
         self.value_net_ext = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
         self.value_net_int = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
+
+        # Cost critic
+        if self.cost_critic == 0:
+            self.value_net_cost = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
+            self.value_net_cost.requires_grad_(False)
+        elif self.cost_critic == 1:
+            self.value_net_cost = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
+        else:
+            raise NotImplementedError(f"Unsupported cost critic '{self.cost_critic}'.")
+
         # Init weights: use orthogonal initialization
         # with small initial weight for the output
         if self.ortho_init:
@@ -295,6 +307,7 @@ class PPOModel(ActorCriticCnnPolicy):
                 self.action_net: 0.01,
                 self.value_net_ext: 1,
                 self.value_net_int: 1,
+                self.value_net_cost: 1 if self.cost_critic > 0 else 0,
             }
             if not self.share_features_extractor:
                 # Note(antonin): this is to keep SB3 results
@@ -323,6 +336,8 @@ class PPOModel(ActorCriticCnnPolicy):
         nn.init.zeros_(self.value_net_ext.bias)
         nn.init.zeros_(self.value_net_int.weight)
         nn.init.zeros_(self.value_net_int.bias)
+        nn.init.zeros_(self.value_net_cost.weight)
+        nn.init.zeros_(self.value_net_cost.bias)
 
         module_names = {
             self.features_extractor: 'features_extractor',
@@ -371,7 +386,8 @@ class PPOModel(ActorCriticCnnPolicy):
         log_prob = distribution.log_prob(actions) 
         ext_values = self.value_net_ext(latent_vf)
         int_values = self.value_net_int(latent_vf)
-        return actions, ext_values, int_values, log_prob, memories
+        cost_values = self.value_net_cost(latent_vf)
+        return actions, ext_values, int_values, cost_values, log_prob, memories
 
     def evaluate_policy(self, obs: Tensor, act: Tensor, mem: Tensor) \
             -> Tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -380,4 +396,5 @@ class PPOModel(ActorCriticCnnPolicy):
         log_prob = distribution.log_prob(act)
         ext_values = self.value_net_ext(latent_vf)
         int_values = self.value_net_int(latent_vf)
-        return ext_values, int_values, log_prob, distribution.entropy(), memories
+        cost_values = self.value_net_cost(latent_vf)
+        return ext_values, int_values, cost_values, log_prob, distribution.entropy(), memories

@@ -66,6 +66,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.int_rew_stats = RunningMeanStd(momentum=self.int_rew_momentum)
         self.ext_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
         self.int_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
+        self.cost_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
 
         self.generator_ready = False
         self.reset()
@@ -77,18 +78,22 @@ class PPORolloutBuffer(BaseBuffer):
         self.last_model_mems = np.zeros((self.buffer_size, self.n_envs, self.gru_layers, self.dim_model_traj), dtype=np.float32)
         self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.float32)
         self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.costs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.intrinsic_rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.costs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.ext_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.int_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.episode_starts = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.episode_dones = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.ext_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.int_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.log_probs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.entropy = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.ext_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.int_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         if self.use_status_predictor:
             self.curr_key_status = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
             self.curr_door_status = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
@@ -116,56 +121,69 @@ class PPORolloutBuffer(BaseBuffer):
         if self.int_rew_clip > 0:
             self.intrinsic_rewards = np.clip(self.intrinsic_rewards, -self.int_rew_clip, self.int_rew_clip)
 
-    def compute_returns_and_advantage(self, last_ext_values: th.Tensor, last_int_values: th.Tensor, dones: np.ndarray) -> None:
+    def compute_returns_and_advantage(self, last_ext_values: th.Tensor, last_int_values: th.Tensor, last_cost_values: th.Tensor, dones: np.ndarray) -> None:
         # Rescale extrinisc rewards
         self.rewards *= self.ext_rew_coef
 
         # Convert to numpy
         last_ext_values = last_ext_values.clone().cpu().numpy().flatten()
         last_int_values = last_int_values.clone().cpu().numpy().flatten()
+        last_cost_values = last_cost_values.clone().cpu().numpy().flatten()
 
         last_ext_gae_lam = 0
         last_int_gae_lam = 0
+        last_cost_gae_lam = 0
         for step in reversed(range(self.buffer_size)):
             if step == self.buffer_size - 1:
                 next_non_terminal = 1.0 - dones
                 next_ext_values = last_ext_values
                 next_int_values = last_int_values
+                next_cost_values = last_cost_values
             else:
                 next_non_terminal = 1.0 - self.episode_starts[step + 1]
                 next_ext_values = self.ext_values[step + 1]
                 next_int_values = self.int_values[step + 1]
+                next_cost_values = self.cost_values[step + 1]
 
-            delta_ext =           self.rewards[step] + self.gamma * next_ext_values * next_non_terminal - self.ext_values[step]
-            delta_int = self.intrinsic_rewards[step] + self.gamma * next_int_values * next_non_terminal - self.int_values[step]
+            delta_ext =           self.rewards[step] + self.gamma * next_ext_values  * next_non_terminal - self.ext_values[step]
+            delta_int = self.intrinsic_rewards[step] + self.gamma * next_int_values  * next_non_terminal - self.int_values[step]
+            delta_cost =           self.costs[step]  + self.gamma * next_cost_values * next_non_terminal - self.cost_values[step]
             last_ext_gae_lam = delta_ext + self.gamma * self.gae_lambda * next_non_terminal * last_ext_gae_lam
             last_int_gae_lam = delta_int + self.gamma * self.gae_lambda * next_non_terminal * last_int_gae_lam
+            last_cost_gae_lam = delta_cost + self.gamma * self.gae_lambda * next_non_terminal * last_cost_gae_lam
             self.ext_advantages[step] = last_ext_gae_lam
             self.int_advantages[step] = last_int_gae_lam
+            self.cost_advantages[step] = last_cost_gae_lam
 
         # TD(lambda) estimator, see Github PR #375 or "Telescoping in TD(lambda)"
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
         self.ext_returns = self.ext_advantages + self.ext_values 
         self.int_returns = self.int_advantages + self.int_values
+        self.cost_returns = self.cost_advantages + self.cost_values
 
         # Normalize advantages per rollout buffer
         if self.adv_norm:
             self.ext_advantage_stats.update(self.ext_advantages)
             self.int_advantage_stats.update(self.int_advantages)
+            self.cost_advantage_stats.update(self.cost_advantages)
             self.ext_adv_mean = self.ext_advantage_stats.mean
             self.ext_adv_std = self.ext_advantage_stats.std
             self.int_adv_mean = self.int_advantage_stats.mean
             self.int_adv_std = self.int_advantage_stats.std
+            self.cost_adv_mean = self.cost_advantage_stats.mean
+            self.cost_adv_std = self.cost_advantage_stats.std
 
             # Standardization
             if self.adv_norm == 2:
                 self.ext_advantages = (self.ext_advantages - self.ext_adv_mean) / (self.ext_adv_std + self.adv_eps)
                 self.int_advantages = (self.int_advantages - self.int_adv_mean) / (self.int_adv_std + self.adv_eps)
+                self.cost_advantages = (self.cost_advantages - self.cost_adv_mean) / (self.cost_adv_std + self.adv_eps)
 
             # Standardization without subtracting the mean value
             if self.adv_norm == 3:
                 self.ext_advantages = self.ext_advantages / (self.ext_adv_std + self.adv_eps)
                 self.int_advantages = self.int_advantages / (self.int_adv_std + self.adv_eps)
+                self.cost_advantages = self.cost_advantages / (self.cost_adv_std + self.adv_eps)
 
     def add(
         self,
@@ -181,6 +199,7 @@ class PPORolloutBuffer(BaseBuffer):
         episode_done: np.ndarray,
         ext_value: th.Tensor,
         int_value: th.Tensor,
+        cost_value: th.Tensor,
         log_prob: Optional[th.Tensor],
         entropy: Optional[th.Tensor],
         curr_key_status: Optional[np.ndarray],
@@ -208,6 +227,7 @@ class PPORolloutBuffer(BaseBuffer):
         self.episode_dones[self.pos] = np.array(episode_done).copy()
         self.ext_values[self.pos] = ext_value.clone().cpu().numpy().flatten()
         self.int_values[self.pos] = int_value.clone().cpu().numpy().flatten()
+        self.cost_values[self.pos] = cost_value.clone().cpu().numpy().flatten()
         self.log_probs[self.pos] = log_prob.clone().cpu().numpy()
         self.entropy[self.pos] = entropy.clone().cpu().numpy()
         if self.use_status_predictor:
@@ -231,12 +251,15 @@ class PPORolloutBuffer(BaseBuffer):
                 "actions",
                 "ext_values",
                 "int_values",
+                "cost_values",
                 "log_probs",
                 "entropy",
                 "ext_advantages",
                 "int_advantages",
+                "cost_advantages",
                 "ext_returns",
                 "int_returns",
+                "cost_returns",
                 "costs",
             ]
             if self.use_status_predictor:
@@ -275,12 +298,15 @@ class PPORolloutBuffer(BaseBuffer):
             self.actions[batch_inds],
             self.ext_values[batch_inds].flatten(),
             self.int_values[batch_inds].flatten(),
+            self.cost_values[batch_inds].flatten(),
             self.log_probs[batch_inds].flatten(),
             self.entropy[batch_inds].flatten(),
             self.ext_advantages[batch_inds].flatten(),
             self.int_advantages[batch_inds].flatten(),
+            self.cost_advantages[batch_inds].flatten(),
             self.ext_returns[batch_inds].flatten(),
             self.int_returns[batch_inds].flatten(),
+            self.cost_returns[batch_inds].flatten(),
             self.costs[batch_inds].flatten(),
         )
         if self.use_status_predictor:

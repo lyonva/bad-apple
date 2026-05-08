@@ -178,3 +178,40 @@ class EnvSrc(Enum):
             if env_src == 'atari':
                 return EnvSrc.Atari
         raise ValueError
+
+class CostObj(Enum):
+    NoCO = 0
+    Lag = 1
+    SB = 2
+    SaBER = 3
+
+    @staticmethod
+    def get_enum_objective_type(shape_type):
+        if isinstance(shape_type, CostObj):
+            return shape_type
+        if isinstance(shape_type, str):
+            shape_type = shape_type.strip().lower()
+            if shape_type == "noco" or shape_type == "none":
+                return CostObj.NoCO
+            elif shape_type == "lag" or shape_type == "lagrangian":
+                return CostObj.Lag
+            elif shape_type == "sb" or shape_type == "safeboundary":
+                return CostObj.SB
+            elif shape_type == "saber":
+                return CostObj.SaBER
+        raise ValueError
+    
+    @staticmethod
+    def get_str_name(shape_type):
+        if isinstance(shape_type, str):
+            return shape_type
+        if isinstance(shape_type, CostObj):
+            if shape_type == CostObj.NoCO:
+                return "noco"
+            elif shape_type == CostObj.Lag:
+                return "lag"
+            elif shape_type == CostObj.SB:
+                return "sb"
+            elif shape_type == CostObj.SaBER:
+                return "saber"
+        raise ValueError

@@ -1,27 +1,32 @@
 import os
 import time
+from collections.abc import Callable
+from typing import Any
 
 import torch as th
 import wandb
 from torch import nn
+import gymnasium as gym
+from gymnasium.core import Wrapper
 from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
 from src.env.safety_constraints import MiniGridSafetyCostWrapper, AtariSafetyCostWrapper
 from stable_baselines3.common.callbacks import CallbackList
-from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.atari_wrappers import AtariWrapper
-from stable_baselines3.common.vec_env import VecMonitor
+from stable_baselines3.common.vec_env import VecMonitor, DummyVecEnv, SubprocVecEnv, VecEnv
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.monitor import Monitor
+from src.env.wrapper import MiniGridCostWorkaroundWrapper
 import ale_py
 from datetime import datetime
 
 from src.algo.common_models.cnns import BatchNormCnnFeaturesExtractor, LayerNormCnnFeaturesExtractor, \
     CnnFeaturesExtractor
 from src.env.subproc_vec_env import CustomSubprocVecEnv, CustomVecFrameStack
-from src.utils.enum_types import EnvSrc, NormType, ModelType, ShapeType
+from src.utils.enum_types import EnvSrc, NormType, ModelType, ShapeType, CostObj
 from wandb.integration.sb3 import WandbCallback
 
 from src.utils.loggers import LocalLogger
 from src.utils.video_recorder import VecVideoRecorder
-
 
 class TrainingConfig():
     def __init__(self):
@@ -36,6 +41,7 @@ class TrainingConfig():
 
     def init_env_name(self, game_name, project_name):
         env_name = game_name
+        self.requires_safe_wrapper = False if game_name.lower()[0:4] == "safe" else True
         self.env_source = EnvSrc.get_enum_env_src(self.env_source)
         if self.env_source == EnvSrc.MiniGrid and not game_name.startswith('MiniGrid-'):
             env_name = f'MiniGrid-{game_name}-v0'
@@ -84,13 +90,19 @@ class TrainingConfig():
             if self.fully_obs:
                 wrapper_class = lambda x: ImgObsWrapper(FullyObsWrapper(x)) # TODO make it so the safety wrapper works with fully obs
             else:
-                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(x), self.enable_cost, self.collision_cost, self.termination_cost)
+                wrapper_class = lambda x: ImgObsWrapper(x)
 
             if self.fixed_seed >= 0 and self.env_source == EnvSrc.MiniGrid:
                 assert not self.fully_obs
                 _seeds = [self.fixed_seed]
-                wrapper_class = lambda x: MiniGridSafetyCostWrapper(ImgObsWrapper(ReseedWrapper(x, seeds=_seeds)), self.enable_cost, self.collision_cost, self.termination_cost)
-            return wrapper_class
+                wrapper_class = lambda x: ImgObsWrapper(ReseedWrapper(x, seeds=_seeds))
+            
+            if self.requires_safe_wrapper:
+                wrapper_class2 = lambda x: MiniGridSafetyCostWrapper(wrapper_class(x), self.enable_cost, self.collision_cost, self.termination_cost)
+            else:
+                wrapper_class2 = lambda x: MiniGridCostWorkaroundWrapper(wrapper_class(x))
+
+            return wrapper_class2
         if self.env_source == EnvSrc.Atari:
             wrapper_class = lambda x: AtariSafetyCostWrapper(AtariWrapper(x, clip_reward=False))
             return wrapper_class
@@ -197,6 +209,8 @@ class TrainingConfig():
             assert self.n_steps * self.num_processes >= self.batch_size
         
         self.int_shape_source = ShapeType.get_enum_shape_type(self.int_shape_source)
+
+        self.cost_objective = CostObj.get_enum_objective_type(self.cost_objective)
 
     def get_cnn_kwargs(self, cnn_activation_fn=nn.ReLU):
         features_extractor_common_kwargs = dict(

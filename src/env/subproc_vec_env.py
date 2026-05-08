@@ -29,6 +29,7 @@ def _cworker(
     env_fn_wrapper: CloudpickleWrapper,
 ) -> None:
     parent_remote.close()
+    env = env_fn_wrapper.var()
     env = _patch_env(env_fn_wrapper.var())
     reset_info: Optional[dict[str, Any]] = {}
     while True:

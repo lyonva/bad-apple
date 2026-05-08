@@ -11,12 +11,15 @@ class RolloutBufferSamples(NamedTuple):
     actions: th.Tensor
     old_ext_values: th.Tensor
     old_int_values: th.Tensor
+    old_cost_values: th.Tensor
     old_log_prob: th.Tensor
     old_entropy: th.Tensor
     ext_advantages: th.Tensor
     int_advantages: th.Tensor
+    cost_advantages: th.Tensor
     ext_returns: th.Tensor
     int_returns: th.Tensor
+    cost_returns: th.Tensor
     costs: th.Tensor
     curr_key_status: Optional[th.Tensor]
     curr_door_status: Optional[th.Tensor]
