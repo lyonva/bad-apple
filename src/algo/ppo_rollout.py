@@ -67,11 +67,14 @@ class PPORollout(BaseAlgorithm):
         sde_sample_freq: int,
         int_shape_source : ShapeType,
         grm_delay : int,
-        adopes_coef_inc : float,
+        adopes_epsilon : float,
         pies_decay : int,
         cost_critic : int,
         cost_objective : CostObj,
         cost_limit : float,
+        saber_epsilon : float,
+        saber_zeta_min_rollout : int,
+        saber_zeta_max_rollout : int,
         cost_as_ir : int,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
@@ -125,11 +128,14 @@ class PPORollout(BaseAlgorithm):
         self.adv_eps = adv_eps
         self.int_shape_source = int_shape_source
         self.grm_delay = grm_delay
-        self.adopes_coef_inc = adopes_coef_inc
+        self.adopes_epsilon = adopes_epsilon
         self.pies_decay = pies_decay
         self.cost_critic = cost_critic
         self.cost_objective = cost_objective
         self.cost_limit = cost_limit
+        self.saber_epsilon = saber_epsilon
+        self.saber_zeta_min_rollout = saber_zeta_min_rollout
+        self.saber_zeta_max_rollout = saber_zeta_max_rollout
         self.cost_as_ir = cost_as_ir
         self.env_source = env_source
         self.env_render = env_render
@@ -153,7 +159,8 @@ class PPORollout(BaseAlgorithm):
         elif self.int_shape_source == ShapeType.GRM:
             self.int_shape_model = GRM(self.gamma, self.n_envs, self.grm_delay)
         elif self.int_shape_source == ShapeType.ADOPES:
-            self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=1.0/self.pies_decay)
+            # self.int_shape_model = ADOPES(self.gamma, self.n_envs, adopes_coef_inc=1.0/self.pies_decay)
+            self.int_shape_model = None
         elif self.int_shape_source == ShapeType.PIES:
             self.int_shape_model = PIES(self.gamma, self.n_envs, pies_decay)
         else:
@@ -240,6 +247,14 @@ class PPORollout(BaseAlgorithm):
             gru_layers=self.policy.gru_layers,
             int_rew_momentum=self.int_rew_momentum,
             use_status_predictor=self.policy.use_status_predictor,
+            adops_enabled=self.int_shape_model == ShapeType.ADOPES,
+            adopes_epsilon=self.adopes_epsilon,
+            adopes_coef_max_rollout=self.pies_decay,
+            cost_limit=self.cost_limit,
+            saber_enabled=self.cost_objective == CostObj.SaBER,
+            saber_epsilon=self.saber_epsilon,
+            saber_zeta_min_rollout = self.saber_zeta_min_rollout,
+            saber_zeta_max_rollout = self.saber_zeta_max_rollout,
         )
 
 
@@ -510,8 +525,8 @@ class PPORollout(BaseAlgorithm):
         if log_interval is not None and self.iteration % log_interval == 0:
             log_data = {
                 "iterations": self.iteration,
-                "time/fps": int(self.num_timesteps / (time.time() - self.start_time)),
-                "time/time_elapsed": int(time.time() - self.start_time),
+                "time/fps": float(self.num_timesteps / (time.time() - self.start_time)),
+                "time/time_elapsed": float(time.time() - self.start_time),
                 "time/total_timesteps": self.num_timesteps,
                 "rollout/ep_rew_mean": self.rollout_sum_rewards / (self.rollout_done_episodes + 1e-8),
                 "rollout/ep_cost_mean": self.rollout_sum_costs / (self.rollout_done_episodes + 1e-8),
@@ -783,7 +798,8 @@ class PPORollout(BaseAlgorithm):
         elif self.int_shape_source == ShapeType.GRM:
             intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards, dones)
         elif self.int_shape_source == ShapeType.ADOPES:
-            intrinsic_rewards = self.int_shape_model.shape_rewards(rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones)
+            # intrinsic_rewards = self.int_shape_model.shape_rewards(rewards, intrinsic_rewards, ext_values, int_values, next_ext_values, next_int_values, dones)
+            pass
         elif self.int_shape_source == ShapeType.PIES:
             intrinsic_rewards = self.int_shape_model.shape_rewards(intrinsic_rewards)
         return intrinsic_rewards
@@ -904,7 +920,9 @@ class PPORollout(BaseAlgorithm):
         ppo_rollout_buffer.compute_intrinsic_rewards()
         ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, new_cost_values, dones)
         callback.on_rollout_end()
-        if (self.int_shape_source == ShapeType.ADOPES) or (self.int_shape_source == ShapeType.PIES):
+        # if (self.int_shape_source == ShapeType.ADOPES) or (self.int_shape_source == ShapeType.PIES):
+        #     self.int_shape_model.on_rollout_end()
+        if self.int_shape_source == ShapeType.PIES:
             self.int_shape_model.on_rollout_end()
         return True
 
@@ -916,6 +934,7 @@ class PPORollout(BaseAlgorithm):
         log_interval: int = 1,
         tb_log_name: str = "CustomOnPolicyAlgorithm",
         progress_bar: bool = False,
+        start_time : float = None
     ) -> "PPORollout":
         self.iteration = 0
 
@@ -931,6 +950,7 @@ class PPORollout(BaseAlgorithm):
 
         self.on_training_start()
         print('Collecting rollouts ...')
+        self.start_time = time.time()
 
         while self.num_timesteps < total_timesteps:
             collect_start_time = time.time()

@@ -78,6 +78,9 @@ def train(config):
         dsc_obs_queue_len=config.dsc_obs_queue_len,
         log_dsc_verbose=config.log_dsc_verbose,
         cost_critic=config.cost_critic,
+        cost_objective=config.cost_objective,
+        lagrange_learning_rate=config.lagrange_learning_rate,
+        lagrange_initial_value=config.lagrange_initial_value,
     )
 
     model = PPOTrainer(
@@ -115,11 +118,14 @@ def train(config):
         clip_range_vf=config.clip_range_vf,
         int_shape_source=config.int_shape_source,
         grm_delay=config.grm_delay,
-        adopes_coef_inc=config.adopes_coef_inc,
+        adopes_epsilon=config.adopes_epsilon,
         pies_decay=config.pies_decay,
         cost_critic=config.cost_critic,
         cost_objective=config.cost_objective,
         cost_limit=config.cost_limit,
+        saber_epsilon=config.saber_epsilon,
+        saber_zeta_min_rollout=config.saber_zeta_min_rollout,
+        saber_zeta_max_rollout=config.saber_zeta_max_rollout,
         cost_as_ir=config.cost_as_ir,
         policy_kwargs=policy_kwargs,
         env_source=config.env_source,
@@ -140,7 +146,8 @@ def train(config):
 
     model.learn(
         total_timesteps=config.total_steps,
-        callback=callbacks)
+        callback=callbacks,
+        start_time=config.start_time)
 
 
 @click.command()
@@ -213,16 +220,21 @@ def train(config):
 # Reward shaping params
 @click.option('--int_shape_source', default='NoRS', type=str,
               help='Source of rewarde shaping for IRs: [NoRS|PBIM|GRM|ADOPES]')
-@click.option('--grm_delay', default=1, type=int,
-              help='D-GRM  for intrinsic reward discounting')
-@click.option('--adopes_coef_inc', default=0.0004, type=float,
-              help='Scale coefficient increase per-rollout that affects F2 shaping. Set to 1 for ADOPS (No scaling F2).')
-@click.option('--pies_decay', default=2500, type=int,
-              help='PIES decay coefficient. PIES coefficient starts at 1, and decays by 1/C per rollout until 0 is reached.')
+@click.option('--grm_delay', default=1, type=int, help='D-GRM  for intrinsic reward discounting')
+@click.option('--adopes_epsilon', default=1e-6, type=float, help='Epsilon value for F2 calculation.')
+@click.option('--pies_decay', default=1, type=int,
+              help='PIES decay coefficient. PIES coefficient starts at 1, and decays by 1/C per rollout until 0 is reached. Used by ADOPES and PIES.')
 # Constrained RL
 @click.option('--cost_critic', type=int, default=0, help='Enable a critic to estimate costs. 0 = No critic. 1 = MLP critic. 2 = Distributional RL critic.')
 @click.option('--cost_objective', type=str, default="NoCO", help="Approach for combining cost into agent objective: [NoCO|Lag|SB|SaBER]")
 @click.option('--cost_limit', type=float, default=0, help='Threshold value which the agent must keep cost returns under.')
+@click.option('--lagrange_learning_rate', type=float, default=1e-6, help='Learning rate for the Lagrangian multiplier.')
+@click.option('--lagrange_initial_value', type=float, default=0, help='Starting value for the Lagrangian multiplier.')
+@click.option('--saber_epsilon', default=1e-6, type=float, help='Epsilon value for R2 calculation.')
+@click.option('--saber_zeta_min_rollout', default=1, type=int, 
+              help='SaBER penalty coefficient zeta. Controls from which rollout zeta starts increasing.')
+@click.option('--saber_zeta_max_rollout', default=1, type=int, 
+              help='SaBER penalty coefficient zeta. Starts at 0, and increases by 1/C per rollout until 1 is reached.')
 # Safe RL parameters
 @click.option('--enable_cost', type=int, default=1, help='Whether to enable cost calculation.')
 @click.option('--cost_as_ir', type=int, default=0, help='Whether to use cost as a negative intrinsic reward, which overrides normal IM if non-zero. 0 = Cost is not used as IM. 1 = Overrides over reward shaping. 2 = Cost overrides IM, but it is reward shaped.')
@@ -276,7 +288,8 @@ def main(
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
     adv_momentum, adv_ext_coeff, adv_int_coeff, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
-    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_coef_inc, pies_decay, cost_critic, cost_objective, cost_limit, enable_cost, cost_as_ir, collision_cost, termination_cost,
+    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_epsilon, pies_decay, cost_critic, cost_objective, cost_limit, lagrange_learning_rate, lagrange_initial_value, 
+    saber_epsilon, saber_zeta_min_rollout, saber_zeta_max_rollout, enable_cost, cost_as_ir, collision_cost, termination_cost,
     use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_cnn_layers, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
     model_gru_norm, activation_fn, cnn_activation_fn, gru_layers, optimizer, optim_eps, adam_beta1, adam_beta2,

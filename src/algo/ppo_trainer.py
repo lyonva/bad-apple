@@ -55,11 +55,14 @@ class PPOTrainer(PPORollout):
         can_see_walls: int = 1,
         int_shape_source : ShapeType = ShapeType.NoRS,
         grm_delay : int = 1,
-        adopes_coef_inc : float = 0.01,
-        pies_decay : int = 2000,
+        adopes_epsilon : float = 1e-6,
+        pies_decay : int = 1,
         cost_critic : int = 0,
         cost_objective : CostObj = CostObj.NoCO,
         cost_limit : float = 0.0,
+        saber_epsilon : float = 1e-6,
+        saber_zeta_min_rollout : int = 1,
+        saber_zeta_max_rollout : int = 1,
         cost_as_ir : int = 0,
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
@@ -109,10 +112,13 @@ class PPOTrainer(PPORollout):
             sde_sample_freq=sde_sample_freq,
             int_shape_source=int_shape_source,
             grm_delay=grm_delay,
-            adopes_coef_inc=adopes_coef_inc,
+            adopes_epsilon=adopes_epsilon,
             pies_decay=pies_decay,
             cost_critic=cost_critic,
             cost_objective=cost_objective,
+            saber_epsilon=saber_epsilon,
+            saber_zeta_min_rollout=saber_zeta_min_rollout,
+            saber_zeta_max_rollout=saber_zeta_max_rollout,
             cost_limit=cost_limit,
             cost_as_ir=cost_as_ir,
             policy_kwargs=policy_kwargs,
@@ -224,14 +230,26 @@ class PPOTrainer(PPORollout):
                     ext_advantages = rollout_data.ext_advantages
                     int_advantages = rollout_data.int_advantages
                     cost_advantages = rollout_data.cost_advantages
+                    sb_advantages = rollout_data.sb_advantages
                     # Normalize Advangages per mini-batch
                     if self.adv_norm == 1:
                         ext_advantages = (ext_advantages - ext_advantages.mean()) / (ext_advantages.std() + self.adv_eps)
                         int_advantages = (int_advantages - int_advantages.mean()) / (int_advantages.std() + self.adv_eps)
                         cost_advantages = (cost_advantages - cost_advantages.mean()) / (cost_advantages.std() + self.adv_eps)
+                        sb_advantages = sb_advantages / (sb_advantages.std() + self.adv_eps)
                     # Combined advantage
                     advantages = self.adv_ext_coeff * ext_advantages + self.adv_int_coeff * int_advantages
-                    # TODO: Add method for combining reward advantages with cost
+                    
+                    # Combine reward advantages with cost
+                    if self.cost_objective == CostObj.Lag:
+                        lagrangian = self.policy.lagrange_multiplier.item()
+                        advantages = (advantages - lagrangian * cost_advantages) / (1 + lagrangian)
+                    if self.cost_objective == CostObj.SB:
+                        lagrangian = self.policy.lagrange_multiplier.item()
+                        advantages = (advantages + lagrangian * sb_advantages) / (1 + lagrangian)
+                    if self.cost_objective == CostObj.SaBER:
+                        zeta = self.ppo_rollout_buffer._saber_zeta()
+                        advantages = (advantages + zeta*sb_advantages) / (1 + zeta)
 
                     # ratio between old and new policy, should be one at the first iteration
                     ratio = th.exp(log_prob - rollout_data.old_log_prob)
@@ -239,6 +257,15 @@ class PPOTrainer(PPORollout):
                     policy_loss_1 = advantages * ratio
                     policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
                     policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+
+                    # Cost-related loss
+                    if self.cost_objective == CostObj.Lag:
+                        mean_cost = th.mean(rollout_data.cost_returns)
+                        lagrangian_loss = -self.policy.lagrange_multiplier * ( mean_cost - self.cost_limit )
+                    if self.cost_objective == CostObj.SB:
+                        mean_cost = th.mean(rollout_data.cost_returns)
+                        lagrangian_loss = -self.policy.lagrange_multiplier * max( mean_cost - self.cost_limit, 0 )
+
                     # Logging
                     clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
 
@@ -304,6 +331,12 @@ class PPOTrainer(PPORollout):
                     th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
                     self.policy.optimizer.step()
 
+                    if self.cost_objective in (CostObj.Lag, CostObj.SB):
+                        self.policy.lagrange_optimizer.zero_grad()
+                        lagrangian_loss.backward()
+                        self.policy.lagrange_optimizer.step()
+                        self.policy.lagrange_multiplier.data.clamp_(0.0, None)
+
                     # END OF A TRAINING BATCH
 
                     if not continue_training:
@@ -342,6 +375,8 @@ class PPOTrainer(PPORollout):
         }
         if hasattr(self.policy, "log_std"):
             log_data.update({"train/std": th.exp(self.policy.log_std).mean().item()})
+        if hasattr(self.policy, "lagrange_multiplier"):
+            log_data.update({"train/lagrangian" : self.policy.lagrange_multiplier.item()} )
         # Update with other stats
         log_data.update(self.training_stats.to_dict())
         # Logging with wandb
@@ -358,6 +393,7 @@ class PPOTrainer(PPORollout):
         log_interval: int = 1,
         tb_log_name: str = "CustomPPOAlgo",
         progress_bar: bool = False,
+        start_time : float = None,
     ) -> BaseAlgorithm:
 
         return super(PPOTrainer, self).learn(
@@ -366,4 +402,5 @@ class PPOTrainer(PPORollout):
             log_interval=log_interval,
             tb_log_name=tb_log_name,
             progress_bar = progress_bar,
+            start_time=start_time
         )

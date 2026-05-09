@@ -138,6 +138,84 @@ class Button(WorldObj):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS["grey"])
         fill_coords(img, point_in_circle(0.5, 0.5, 0.25), COLORS[self.color])
 
+class SafeChoiceEnv(MiniGridEnv):
+    def __init__(self,
+        max_steps : int | None = None,
+        **kwargs,
+    ):
+        width = 5
+        height = 4
+        self.goal1_pos = (3, 1) # Moat
+        self.goal2_pos = (2, 2) # Neutral
+        self.goal3_pos = (1, 1) # Guard
+
+        mission_space = MissionSpace(mission_func=self._gen_mission)
+
+        if max_steps is None:
+            max_steps = 10
+        
+        super().__init__(
+            mission_space=mission_space,
+            width=width,
+            height=height,
+            # Set this to True for maximum speed
+            see_through_walls=True,
+            max_steps=max_steps,
+            **kwargs,
+        )
+    
+    @staticmethod
+    def _gen_mission():
+        return "get to the green goal square"
+    
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place a goal square in the bottom-right corner
+        self.put_obj(Goal(color="blue"), *self.goal1_pos)
+        self.put_obj(Goal(), *self.goal2_pos)
+        self.put_obj(Goal(color="red"), *self.goal3_pos)
+
+        # Place obstacles
+        for x, y in ((1, 2), (3, 2), (4, 2)):
+            self.put_obj(Wall(), x, y)
+
+        # Place the agent
+        self.agent_pos = (2, 1)
+        self.agent_dir = 1
+
+        self.mission = "get to the green goal square"
+    
+    def _reward(self) -> float:
+        """
+        Compute the reward to be given upon success
+        """
+        if self.agent_pos == self.goal1_pos:
+            return 1
+        if self.agent_pos == self.goal2_pos:
+            return 0.1
+        if self.agent_pos == self.goal3_pos:
+            return 0.2
+        return 0
+    
+    def _cost(self):
+        cost = 0
+        if self.agent_pos == self.goal3_pos:
+            cost = 4
+        
+        if self.agent_pos == self.goal1_pos:
+            cost = 10
+
+        return cost
+
+register(
+    id='MiniGrid-SafeChoice-v0',
+    entry_point='src.env.safe_minigrid:SafeChoiceEnv',
+)
 
 class SafeBogMazeEnv(MiniGridEnv):
 
@@ -183,7 +261,7 @@ class SafeBogMazeEnv(MiniGridEnv):
         self.agent_dir = 3
 
         # Place the water tiles
-        for y in range(2, 5):
+        for y in range(2, 6):
             self.put_obj(Water(), 1, y)
 
         # Place walls
@@ -228,5 +306,72 @@ class SafeBogMazeEnv(MiniGridEnv):
 register(
     id='MiniGrid-SafeBogMaze-v0',
     entry_point='src.env.safe_minigrid:SafeBogMazeEnv',
-    disable_env_checker=True,
+)
+
+class SafeWaterMaze5x7Env(MiniGridEnv):
+
+    def __init__(self,
+        max_steps : int | None = None,
+        **kwargs,
+    ):
+        width = 5
+        height = 7
+        self.goal_pos = (1, 2)
+
+        mission_space = MissionSpace(mission_func=self._gen_mission)
+
+        if max_steps is None:
+            max_steps = 100
+        
+        super().__init__(
+            mission_space=mission_space,
+            width=width,
+            height=height,
+            # Set this to True for maximum speed
+            see_through_walls=True,
+            max_steps=max_steps,
+            **kwargs,
+        )
+    
+    @staticmethod
+    def _gen_mission():
+        return "get to the green goal square"
+    
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place a goal square in the tp[-right corner
+        self.put_obj(Goal(), *self.goal_pos)
+
+        # Place the agent
+        self.agent_pos = (2, 5)
+        self.agent_dir = 3
+
+        # Place the water tiles
+        for y in range(3, 6):
+            self.put_obj(Water(), 1, y)
+
+        # Place walls
+        walls = [(2,2), (2,4)]
+        
+        for x, y in walls:
+            self.put_obj(Wall(), x, y)
+
+        self.mission = "get to the green goal square"
+
+    def _cost(self):
+        # Check water
+        cost = 0
+        new_cell = self.grid.get(*self.agent_pos)
+        if new_cell is not None and new_cell.type == "floor" and new_cell.color == "blue":
+            cost = 1
+        return cost
+
+register(
+    id='MiniGrid-SafeWaterMaze-5x7-v0',
+    entry_point='src.env.safe_minigrid:SafeWaterMaze5x7Env',
 )

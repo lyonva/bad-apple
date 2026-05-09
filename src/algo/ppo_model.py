@@ -13,7 +13,7 @@ from src.algo.intrinsic_rewards.max_entropy import MaxEntropyModel
 from src.algo.common_models.gru_cell import CustomGRUCell
 from src.algo.common_models.mlps import *
 from src.utils.common_func import init_module_with_name
-from src.utils.enum_types import ModelType, NormType
+from src.utils.enum_types import ModelType, NormType, CostObj
 
 from stable_baselines3.common.policies import ActorCriticCnnPolicy
 from stable_baselines3.common.preprocessing import preprocess_obs
@@ -90,6 +90,9 @@ class PPOModel(ActorCriticCnnPolicy):
         dsc_obs_queue_len: int = 0,
         log_dsc_verbose: int = 0,
         cost_critic : int = 0,
+        cost_objective : CostObj = CostObj.NoCO,
+        lagrange_learning_rate : float = 1e-6,
+        lagrange_initial_value : float = 0,
     ):
         self.run_id = run_id
         self.n_envs = n_envs
@@ -132,6 +135,9 @@ class PPOModel(ActorCriticCnnPolicy):
         self.dsc_obs_queue_len = dsc_obs_queue_len
         self.log_dsc_verbose = log_dsc_verbose
         self.cost_critic = cost_critic
+        self.cost_objective = cost_objective
+        self.lagrange_learning_rate = lagrange_learning_rate
+        self.lagrange_initial_value = lagrange_initial_value
 
         if isinstance(observation_space, gym.spaces.Dict):
             observation_space = observation_space["rgb"]
@@ -177,6 +183,7 @@ class PPOModel(ActorCriticCnnPolicy):
         )
         self._init_modules()
         self._init_optimizers()
+        self._init_lagrange()
 
         # Build Intrinsic Reward Models
         int_rew_model_kwargs = dict(
@@ -309,6 +316,7 @@ class PPOModel(ActorCriticCnnPolicy):
                 self.value_net_int: 1,
                 self.value_net_cost: 1 if self.cost_critic > 0 else 0,
             }
+
             if not self.share_features_extractor:
                 # Note(antonin): this is to keep SB3 results
                 # consistent, see GH#1148
@@ -358,6 +366,19 @@ class PPOModel(ActorCriticCnnPolicy):
             lr=self.learning_rate,
             **self.optimizer_kwargs
         )
+    
+    def _init_lagrange(self) -> None:
+        if self.cost_objective in (CostObj.Lag, CostObj.SB):
+            self.lagrange_multiplier = nn.Parameter(
+                th.as_tensor(self.lagrange_initial_value),
+                requires_grad=True
+            )
+            self.lagrange_optimizer = self.optimizer_class(
+                [self.lagrange_multiplier],
+                lr=self.lagrange_learning_rate,
+                **self.optimizer_kwargs
+            )
+
 
     def _get_rnn_embeddings(self, hiddens: Optional[Tensor], inputs: Tensor, modules: List[nn.Module]):
         outputs = []
