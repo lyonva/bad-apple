@@ -1,4 +1,4 @@
-SET map=Empty-16x16
+SET map=SafeWaterMaze-5x7
 SET cost_limit=2.5
 
 REM SET cost_objective="NoCO"
@@ -8,11 +8,11 @@ REM SET cost_objective="SaBER"
 
 SET im="RND"
 SET rs="ADOPS"
-SET irc=0.0025
 
 REM SafeWaterMaze-5x7
 SET steps=4096000
 SET recs=19,37,75,125,250,500
+SET irc=0.0025
 SET norm=1
 SET pies_decay=350
 SET lagrange_learning_rate=0.01
@@ -22,7 +22,7 @@ SET saber_zeta_max_rollout=150
 SET seeds=(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
 
 (for %%s in %seeds% do (
-    python train.py --env_source="Atari" --game_name=%map% --int_rew_source=%im% --int_rew_coef=%irc% ^
+    python train.py --env_source="MiniGrid" --game_name=%map% --int_rew_source=%im% --int_rew_coef=%irc% ^
     --int_rew_norm=%norm% --run_id=%%s --int_shape_source=%rs% --total_steps=%steps% ^
     --model_recs=[%recs%] --pies_decay=%pies_decay% --cost_critic=1 --cost_limit=%cost_limit% ^
     --cost_objective=%cost_objective% --lagrange_learning_rate=%lagrange_learning_rate% ^
