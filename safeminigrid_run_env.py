@@ -7,7 +7,8 @@ import minigrid
 
 # env = gym.make("MiniGrid-SafeBogMaze-v0",render_mode="human")
 # env = gym.make("MiniGrid-SafeChoice-v0",render_mode="human")
-env = gym.make("MiniGrid-SafeWaterMaze-5x7-v0",render_mode="human")
+# env = gym.make("MiniGrid-SafeWaterMaze-5x7-v0",render_mode="human")
+env = gym.make("MiniGrid-SafeMoatMaze-8x8-v0",render_mode="human")
 
 env = MiniGridCostWorkaroundWrapper(env)
 # Manual seed

@@ -375,3 +375,107 @@ register(
     id='MiniGrid-SafeWaterMaze-5x7-v0',
     entry_point='src.env.safe_minigrid:SafeWaterMaze5x7Env',
 )
+
+class SafeMoatMaze8x8Env(MiniGridEnv):
+    '''
+    The Safe Moat Maze: A maze with three viable shortest paths. The short but high cost moat, the medium cost guard, and the long but costless path.
+    Used for safe RL and risk.
+
+    Based on the original Guardmaze code:
+    https://github.com/ido90/CeSoR/blob/main/Examples/GuardedMaze/GuardedMaze.py
+    '''
+
+    def __init__(self,
+        guard_prob=0.25,
+        max_steps : int | None = None,
+        **kwargs,
+    ):
+        width = 8
+        height = 8
+        self.guard_pos = (5, 6)
+        self.moat_pos = (5, 4)
+        self.goal_pos = (6, 4)
+        self.guard_prob = guard_prob
+
+        mission_space = MissionSpace(mission_func=self._gen_mission)
+
+        if max_steps is None:
+            max_steps = 100
+        
+        super().__init__(
+            mission_space=mission_space,
+            width=width,
+            height=height,
+            # Set this to True for maximum speed
+            see_through_walls=True,
+            max_steps=max_steps,
+            agent_view_size=9,
+            **kwargs,
+        )
+    
+    @staticmethod
+    def _gen_mission():
+        return "get to the green goal square"
+    
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place a goal square in the bottom-right corner
+        self.put_obj(Goal(), *self.goal_pos)
+
+        # Place obstacles
+        for x, y in ((3, 2), (4, 2), (5, 2), (5, 3), (5, 5), (5, 6)):
+            self.put_obj(Wall(), x, y)
+        
+        # Color the guard and moat
+        self.put_obj(Floor("red"), *self.guard_pos)
+        self.put_obj(Water(), *self.moat_pos)
+
+        # Place the agent
+        # self.agent_pos = (2, 5)
+        self.place_agent((1,3), (4,4))
+        # self.agent_dir = 0
+
+        self.mission = "get to the green goal square"
+    
+    def _reward(self) -> float:
+        """
+        Compute the reward to be given upon success
+        """
+
+        # return 1.12 - 0.03 * min(32, self.step_count)
+        return 1 - 0.9 * (self.step_count / self.max_steps)
+    
+    def _cost(self):
+        cost = 0
+        if self.agent_pos == self.guard_pos:
+            if self.guard_prob == 0:
+               cost = 4
+            else:
+                if self._rand_float(0, 1) < self.guard_prob:
+                    cost = 10
+                else:
+                    cost = 2
+        
+        if self.agent_pos == self.moat_pos:
+            cost = 10
+
+        return cost
+
+class SafeDetMoatMaze8x8Env(SafeMoatMaze8x8Env):
+    def __init__(self, max_steps : int | None = None, **kwargs,):
+        super().__init__(guard_prob=0, max_steps=max_steps, **kwargs)
+
+register(
+    id='MiniGrid-SafeMoatMaze-8x8-v0',
+    entry_point='src.env.safe_minigrid:SafeMoatMaze8x8Env',
+)
+register(
+    id='MiniGrid-SafeDetMoatMaze-8x8-v0',
+    entry_point='src.env.safe_minigrid:SafeDetMoatMaze8x8Env',
+)
+

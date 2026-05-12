@@ -84,10 +84,10 @@ def make_video(config):
         if model_mems is not None:
             model._last_model_mems = model_mems.detach().clone()
         
-        for i, d in enumerate(dones):
-            if d:
-                venv.send_reset(env_id=i)
-                new_obs[i] = venv.recv_obs(env_id=i)
+        # for i, d in enumerate(dones):
+        #     if d:
+        #         venv.send_reset(env_id=i)
+        #         new_obs[i] = venv.recv_obs(env_id=i)
 
         obs = new_obs
         steps += 1

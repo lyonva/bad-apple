@@ -253,7 +253,7 @@ class PPORollout(BaseAlgorithm):
             gru_layers=self.policy.gru_layers,
             int_rew_momentum=self.int_rew_momentum,
             use_status_predictor=self.policy.use_status_predictor,
-            adops_enabled=self.int_shape_model == ShapeType.ADOPES,
+            adops_enabled=self.int_shape_source == ShapeType.ADOPES,
             adopes_epsilon=self.adopes_epsilon,
             adopes_coef_max_rollout=self.pies_decay,
             cost_limit=self.cost_limit,

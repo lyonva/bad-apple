@@ -5,6 +5,11 @@
 # cost_limit=3.0
 map="SafeWaterMaze-5x7"
 cost_limit=2.5
+# map="SafeMoatMaze-8x8"
+# cost_limit=5
+# map="SafeDetMoatMaze-8x8"
+# cost_limit=5
+
 
 # cost_objective="NoCO"
 # cost_objective="Lag"
@@ -13,8 +18,6 @@ cost_objective="SaBER"
 
 im="RND"
 rs="ADOPS"
-irc=0.0025
-
 
 # Safe Choice
 # steps=409600
@@ -28,13 +31,25 @@ irc=0.0025
 # SafeWaterMaze-5x7
 steps=4096000
 recs="19,37,75,125,250,500"
+irc=0.0025
 norm=1
 pies_decay=350
 lagrange_learning_rate=0.01
 saber_zeta_min_rollout=1
 saber_zeta_max_rollout=150
 
-seeds=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+# SafeMoatMaze-8x8
+# steps=4096000
+# recs="19,37,75,125,250,500"
+# irc=0.05
+# norm=1
+# pies_decay=250
+# lagrange_learning_rate=0.01
+# saber_zeta_min_rollout=1
+# saber_zeta_max_rollout=150
+
+# seeds=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+seeds=(0)
 
 for seed in ${seeds[@]};
 do
