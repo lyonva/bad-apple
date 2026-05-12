@@ -40,6 +40,6 @@ for seed in ${seeds[@]};
 do
     python train.py --env_source="Minigrid" --game_name="$map" --int_rew_source="$im" --int_rew_coef=$irc --int_rew_norm=$norm --run_id=$seed --int_shape_source="$rs" \
         --total_steps=$steps --model_recs=["$recs"] --pies_decay=$pies_decay --cost_critic=1 --cost_limit=$cost_limit --cost_objective=$cost_objective --lagrange_learning_rate=$lagrange_learning_rate \
-        --saber_zeta_min_rollout=$saber_zeta_min_rollout --saber_zeta_max_rollout=$saber_zeta_max_rollout --sc_decay=$sc_decay --clip_range_vf=0.5 --learning_rate=0.0001
+        --saber_zeta_min_rollout=$saber_zeta_min_rollout --saber_zeta_max_rollout=$saber_zeta_max_rollout --clip_range_vf=0.5 --learning_rate=0.0001
 done
 
