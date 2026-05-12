@@ -196,10 +196,10 @@ class PPORolloutBuffer(BaseBuffer):
             q_ext = self.rewards[step] + self.gamma * next_ext_values * next_non_terminal
             q_int = self.intrinsic_rewards[step] + self.gamma * next_int_values  * next_non_terminal
             q_cost = self.costs[step]  + self.gamma * next_cost_values * next_non_terminal
-            # q_s = -th.nn.functional.softplus(th.Tensor(q_cost) - self.cost_limit, 5000).numpy()
-            # v_s = -th.nn.functional.softplus(th.Tensor(self.cost_values[step]) - self.cost_limit, 5000).numpy()
-            q_s = np.clip(self.cost_limit - q_cost, None, 0)
-            v_s = np.clip(self.cost_limit - self.cost_values[step], None, 0)
+            q_s = -th.nn.functional.softplus(th.Tensor(q_cost) - self.cost_limit, 5000).numpy()
+            v_s = -th.nn.functional.softplus(th.Tensor(self.cost_values[step]) - self.cost_limit, 5000).numpy()
+            # q_s = np.clip(self.cost_limit - q_cost, None, 0)
+            # v_s = np.clip(self.cost_limit - self.cost_values[step], None, 0)
 
             # Shaping
             if self.cost_objective == CostObj.SaBER:

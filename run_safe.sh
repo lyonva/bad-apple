@@ -27,7 +27,7 @@ irc=0.0025
 
 # SafeWaterMaze-5x7
 steps=4096000
-recs="75,125,250,500"
+recs="19,37,75,125,250,500"
 norm=1
 pies_decay=350
 lagrange_learning_rate=0.01
