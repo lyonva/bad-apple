@@ -85,6 +85,7 @@ class PPOModel(ActorCriticCnnPolicy):
         ngu_use_rnd: int = 0,
         rnd_err_norm: int = 0,
         rnd_err_momentum: float = -1,
+        sc_decay: float = 2.0,
         rnd_use_policy_emb: int = 0,
         grm_delay: int = 0,
         dsc_obs_queue_len: int = 0,
@@ -126,6 +127,7 @@ class PPOModel(ActorCriticCnnPolicy):
         self.ngu_use_rnd = ngu_use_rnd
         self.rnd_err_norm = rnd_err_norm
         self.rnd_err_momentum = rnd_err_momentum
+        self.sc_decay = sc_decay
         self.rnd_use_policy_emb = rnd_use_policy_emb
         self.grm_delay = grm_delay
         self.policy_features_extractor_class = policy_features_extractor_class
@@ -142,8 +144,12 @@ class PPOModel(ActorCriticCnnPolicy):
         if isinstance(observation_space, gym.spaces.Dict):
             observation_space = observation_space["rgb"]
 
+        
         self.dim_policy_features = self.policy_features_extractor_kwargs['features_dim']
+        if (int_rew_source == ModelType.RND and rnd_use_policy_emb == 1): # Force RND to use same input size if reusing policy CNNs
+            self.model_features_dim = self.dim_policy_features
         self.dim_model_features = self.model_features_dim
+
 
         self.policy_mlp_common_kwargs = dict(
             inputs_dim = self.dim_policy_features,
@@ -259,7 +265,8 @@ class PPOModel(ActorCriticCnnPolicy):
             )
         if self.int_rew_source == ModelType.StateCount:
             self.int_rew_model = StateCountModel(
-                **int_rew_model_kwargs
+                **int_rew_model_kwargs,
+                sc_decay=self.sc_decay,
             )
         if self.int_rew_source == ModelType.MaxEntropy:
             self.int_rew_model = MaxEntropyModel(

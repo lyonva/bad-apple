@@ -33,6 +33,7 @@ class StateCountModel(IntrinsicRewardBaseModel):
         model_mlp_layers: int = 1,
         gru_layers: int = 1,
         use_status_predictor: int = 0,
+        sc_decay: float = 2,
     ):
         super().__init__(observation_space, action_space, activation_fn, normalize_images,
                          optimizer_class, optimizer_kwargs, max_grad_norm, model_learning_rate,
@@ -43,6 +44,7 @@ class StateCountModel(IntrinsicRewardBaseModel):
         self._build()
         self._init_modules()
         self._init_optimizers()
+        self.sc_decay = sc_decay
         self.counts = dict()
 
     def _build(self) -> None:
@@ -87,11 +89,11 @@ class StateCountModel(IntrinsicRewardBaseModel):
             # Update historical observation embeddings
             hash = sc_ids[env_id].item()
             if hash not in self.counts:
-                self.counts[hash] = 0
-            self.counts[hash] += 1
+                self.counts[hash] = [0 for _ in range(batch_size)]
+            self.counts[hash][env_id] += 1
 
             # Generate intrinsic reward
-            int_rews[env_id] += 1 / np.sqrt( self.counts[hash] )
+            int_rews[env_id] = np.power( self.counts[hash][env_id], -1.0/self.sc_decay )
 
         # Logging
         # stats_logger.add(

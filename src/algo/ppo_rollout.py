@@ -62,6 +62,8 @@ class PPORollout(BaseAlgorithm):
         ext_rew_coef: float,
         adv_norm: int,
         adv_eps: float,
+        adv_ext_coeff: float,
+        adv_int_coeff: float,
         max_grad_norm: float,
         use_sde: bool,
         sde_sample_freq: int,
@@ -126,6 +128,8 @@ class PPORollout(BaseAlgorithm):
         self.ext_rew_coef = ext_rew_coef
         self.adv_norm = adv_norm
         self.adv_eps = adv_eps
+        self.adv_ext_coeff = adv_ext_coeff
+        self.adv_int_coeff = adv_ext_coeff
         self.int_shape_source = int_shape_source
         self.grm_delay = grm_delay
         self.adopes_epsilon = adopes_epsilon
@@ -244,6 +248,8 @@ class PPORollout(BaseAlgorithm):
             adv_momentum=self.adv_momentum,
             adv_norm=self.adv_norm,
             adv_eps=self.adv_eps,
+            adv_ext_coeff=self.adv_ext_coeff,
+            adv_int_coeff=self.adv_int_coeff,
             gru_layers=self.policy.gru_layers,
             int_rew_momentum=self.int_rew_momentum,
             use_status_predictor=self.policy.use_status_predictor,
@@ -251,7 +257,7 @@ class PPORollout(BaseAlgorithm):
             adopes_epsilon=self.adopes_epsilon,
             adopes_coef_max_rollout=self.pies_decay,
             cost_limit=self.cost_limit,
-            saber_enabled=self.cost_objective == CostObj.SaBER,
+            cost_objective=self.cost_objective,
             saber_epsilon=self.saber_epsilon,
             saber_zeta_min_rollout = self.saber_zeta_min_rollout,
             saber_zeta_max_rollout = self.saber_zeta_max_rollout,
@@ -571,10 +577,8 @@ class PPORollout(BaseAlgorithm):
 
             if self.adv_norm > 0:
                 log_data.update({
-                    "rollout/ext_adv_mean": np.mean(self.ppo_rollout_buffer.ext_adv_mean),
-                    "rollout/ext_adv_std": np.std(self.ppo_rollout_buffer.ext_adv_std),
-                    "rollout/int_adv_mean": np.mean(self.ppo_rollout_buffer.int_adv_mean),
-                    "rollout/int_adv_std": np.std(self.ppo_rollout_buffer.int_adv_std),
+                    "rollout/adv_mean": np.mean(self.ppo_rollout_buffer.adv_mean),
+                    "rollout/adv_std": np.std(self.ppo_rollout_buffer.adv_std),
                 })
 
             # Update with other stats
@@ -918,7 +922,8 @@ class PPORollout(BaseAlgorithm):
                 self._last_model_mems = model_mems.detach().clone()
 
         ppo_rollout_buffer.compute_intrinsic_rewards()
-        ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, new_cost_values, dones)
+        lagrangian = self.policy.lagrange_multiplier.item() if self.cost_objective in (CostObj.Lag, CostObj.SB) else 0
+        ppo_rollout_buffer.compute_returns_and_advantage(new_ext_values, new_int_values, new_cost_values, dones, lagrangian)
         callback.on_rollout_end()
         # if (self.int_shape_source == ShapeType.ADOPES) or (self.int_shape_source == ShapeType.PIES):
         #     self.int_shape_model.on_rollout_end()

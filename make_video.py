@@ -14,6 +14,7 @@ from minigrid.wrappers import ImgObsWrapper, FullyObsWrapper, ReseedWrapper
 from stable_baselines3.common.env_util import make_vec_env
 from src.env.subproc_vec_env import CustomSubprocVecEnv
 from src.env.minigrid_envs import *
+from src.env.safe_minigrid import *
 from src.env.safety_constraints import MiniGridSafetyCostWrapper
 from src.utils.video_recorder import VecVideoRecorder
 
@@ -67,7 +68,7 @@ def make_video(config):
     while steps <= config.total_steps:
         obs_tensor = obs_as_tensor(np.repeat(obs, original_processes, axis=0), model.device)
         model._last_policy_mems = model._last_policy_mems.to(model.device)
-        actions, ext_values, int_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems, deterministic=config.deterministic )
+        actions, ext_values, int_values, cost_values, log_probs, policy_mems = model.policy.forward( obs_tensor, model._last_policy_mems, deterministic=config.deterministic )
         actions = actions.cpu().numpy()
         if isinstance(venv.action_space, gym.spaces.Box):
             actions = np.clip(actions, venv.action_space.low, venv.action_space.high)

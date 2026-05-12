@@ -107,6 +107,8 @@ class PPOTrainer(PPORollout):
             ext_rew_coef=ext_rew_coef,
             adv_norm=adv_norm,
             adv_eps=adv_eps,
+            adv_ext_coeff=adv_ext_coeff,
+            adv_int_coeff=adv_int_coeff,
             max_grad_norm=max_grad_norm,
             use_sde=use_sde,
             sde_sample_freq=sde_sample_freq,
@@ -194,6 +196,19 @@ class PPOTrainer(PPORollout):
         loss = None
         continue_training = True
 
+        # Lagrangian Loss
+        if self.cost_objective in (CostObj.Lag, CostObj.SB):
+            mean_cost = self.rollout_sum_costs / (self.rollout_done_episodes + 1e-8)
+            if self.cost_objective == CostObj.Lag:
+                lagrangian_loss = -self.policy.lagrange_multiplier * ( mean_cost - self.cost_limit )
+            if self.cost_objective == CostObj.SB:
+                lagrangian_loss = -self.policy.lagrange_multiplier * max( mean_cost - self.cost_limit, 0 )
+            
+            self.policy.lagrange_optimizer.zero_grad()
+            lagrangian_loss.backward()
+            self.policy.lagrange_optimizer.step()
+            self.policy.lagrange_multiplier.data.clamp_(0.0, None)
+
         for epoch in range(max(self.n_epochs, self.model_n_epochs)):
             for rollout_data in self.ppo_rollout_buffer.get(self.batch_size):
                 # Train intrinsic reward models
@@ -227,44 +242,16 @@ class PPOTrainer(PPORollout):
                     cost_values = cost_values.flatten()
 
                     # Normalize advantage
-                    ext_advantages = rollout_data.ext_advantages
-                    int_advantages = rollout_data.int_advantages
-                    cost_advantages = rollout_data.cost_advantages
-                    sb_advantages = rollout_data.sb_advantages
+                    advantages = rollout_data.advantages
                     # Normalize Advangages per mini-batch
                     if self.adv_norm == 1:
-                        ext_advantages = (ext_advantages - ext_advantages.mean()) / (ext_advantages.std() + self.adv_eps)
-                        int_advantages = (int_advantages - int_advantages.mean()) / (int_advantages.std() + self.adv_eps)
-                        cost_advantages = (cost_advantages - cost_advantages.mean()) / (cost_advantages.std() + self.adv_eps)
-                        sb_advantages = sb_advantages / (sb_advantages.std() + self.adv_eps)
-                    # Combined advantage
-                    advantages = self.adv_ext_coeff * ext_advantages + self.adv_int_coeff * int_advantages
-                    
-                    # Combine reward advantages with cost
-                    if self.cost_objective == CostObj.Lag:
-                        lagrangian = self.policy.lagrange_multiplier.item()
-                        advantages = (advantages - lagrangian * cost_advantages) / (1 + lagrangian)
-                    if self.cost_objective == CostObj.SB:
-                        lagrangian = self.policy.lagrange_multiplier.item()
-                        advantages = (advantages + lagrangian * sb_advantages) / (1 + lagrangian)
-                    if self.cost_objective == CostObj.SaBER:
-                        zeta = self.ppo_rollout_buffer._saber_zeta()
-                        advantages = (advantages + zeta*sb_advantages) / (1 + zeta)
-
+                        advantages = (advantages - advantages.mean()) / (advantages.std() + self.adv_eps)
                     # ratio between old and new policy, should be one at the first iteration
                     ratio = th.exp(log_prob - rollout_data.old_log_prob)
                     # clipped surrogate loss
                     policy_loss_1 = advantages * ratio
                     policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
                     policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
-
-                    # Cost-related loss
-                    if self.cost_objective == CostObj.Lag:
-                        mean_cost = th.mean(rollout_data.cost_returns)
-                        lagrangian_loss = -self.policy.lagrange_multiplier * ( mean_cost - self.cost_limit )
-                    if self.cost_objective == CostObj.SB:
-                        mean_cost = th.mean(rollout_data.cost_returns)
-                        lagrangian_loss = -self.policy.lagrange_multiplier * max( mean_cost - self.cost_limit, 0 )
 
                     # Logging
                     clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
@@ -288,9 +275,17 @@ class PPOTrainer(PPORollout):
                         )
                     # Value loss using the TD(gae_lambda) target
                     ext_value_loss = F.mse_loss(rollout_data.ext_returns, ext_values_pred)
-                    int_value_loss = F.mse_loss(rollout_data.int_returns, int_values_pred)
-                    cost_value_loss = F.mse_loss(rollout_data.cost_returns, cost_values_pred)
-                    value_loss = ext_value_loss + int_value_loss + cost_value_loss
+                    value_loss = ext_value_loss
+                    det = 1
+                    if self.int_rew_source != ModelType.NoModel and self.int_rew_coef != 0:
+                        int_value_loss = F.mse_loss(rollout_data.int_returns, int_values_pred)
+                        value_loss += int_value_loss
+                        det += 1
+                    if self.cost_critic > 0:
+                        cost_value_loss = F.mse_loss(rollout_data.cost_returns, cost_values_pred)
+                        value_loss += cost_value_loss
+                        det += 1
+                    value_loss /= det
 
                     # Entropy loss favor exploration
                     if entropy is None:
@@ -330,13 +325,6 @@ class PPOTrainer(PPORollout):
                     loss.backward()
                     th.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
                     self.policy.optimizer.step()
-
-                    if self.cost_objective in (CostObj.Lag, CostObj.SB):
-                        self.policy.lagrange_optimizer.zero_grad()
-                        lagrangian_loss.backward()
-                        self.policy.lagrange_optimizer.step()
-                        self.policy.lagrange_multiplier.data.clamp_(0.0, None)
-
                     # END OF A TRAINING BATCH
 
                     if not continue_training:

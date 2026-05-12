@@ -11,7 +11,7 @@ from stable_baselines3.common.vec_env import VecNormalize
 from src.algo.buffers.type_aliases import RolloutBufferSamples
 from src.utils.common_func import normalize_rewards
 from src.utils.running_mean_std import RunningMeanStd
-
+from src.utils.enum_types import CostObj
 
 class PPORolloutBuffer(BaseBuffer):
     def __init__(
@@ -34,6 +34,8 @@ class PPORolloutBuffer(BaseBuffer):
         adv_momentum: float = 0.0,
         adv_norm: int = 0,
         adv_eps: float = 1e-8,
+        adv_ext_coeff: float = 1.0,
+        adv_int_coeff: float = 0.5,
         gru_layers: int = 1,
         int_rew_momentum: Optional[float] = None,
         use_status_predictor: int = 0,
@@ -41,7 +43,7 @@ class PPORolloutBuffer(BaseBuffer):
         adopes_epsilon : float = 1e-6,
         adopes_coef_max_rollout: int = 1,
         cost_limit: float = 0,
-        saber_enabled: bool = False,
+        cost_objective: CostObj = CostObj.NoCO,
         saber_epsilon: float = 1e-6,
         saber_zeta_min_rollout: int = 1,
         saber_zeta_max_rollout: int = 1,
@@ -68,21 +70,21 @@ class PPORolloutBuffer(BaseBuffer):
         self.ir_std_buffer = []
         self.use_status_predictor = use_status_predictor
         self.adops_enabled = adops_enabled
+        self.adopes_epsilon = adopes_epsilon
         self.adopes_coef_max_rollout = adopes_coef_max_rollout
         self.cost_limit = cost_limit
-        self.saber_enabled = saber_enabled
+        self.cost_objective = cost_objective
         self.saber_epsilon = saber_epsilon
         self.saber_zeta_min_rollout = saber_zeta_min_rollout
         self.saber_zeta_max_rollout = saber_zeta_max_rollout
         self.adv_norm = adv_norm
         self.adv_eps = adv_eps
+        self.adv_ext_coeff = adv_ext_coeff
+        self.adv_int_coeff = adv_int_coeff
         self.gru_layers = gru_layers
         self.int_rew_momentum = int_rew_momentum
         self.int_rew_stats = RunningMeanStd(momentum=self.int_rew_momentum)
-        self.ext_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
-        self.int_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
-        self.cost_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
-        self.sb_advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
+        self.advantage_stats = RunningMeanStd(momentum=self.adv_momentum)
         self.n_rollout = -1
 
         self.generator_ready = False
@@ -108,10 +110,10 @@ class PPORolloutBuffer(BaseBuffer):
         self.cost_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.log_probs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.entropy = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.ext_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.int_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.cost_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
-        self.sb_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         if self.use_status_predictor:
             self.curr_key_status = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
             self.curr_door_status = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
@@ -147,19 +149,23 @@ class PPORolloutBuffer(BaseBuffer):
         return np.clip((self.n_rollout - self.saber_zeta_min_rollout + 1) / (self.saber_zeta_max_rollout - self.saber_zeta_min_rollout + 1), 0, 1)
     
     def compute_saber_r2(self, v_s, q_s, v_r, v_rplus1, r):
-        return np.where(q_s < v_s,
-            np.clip(v_s - q_s + v_r - self.gamma * v_rplus1 - r - self.saber_epsilon, None, 0),
+        # return np.where(q_s < v_s,
+        #     np.clip(v_s - q_s + v_r - self.gamma * v_rplus1 - r - self.saber_epsilon, None, 0),
+        #     0,
+        # )
+        return np.where(q_s < 0,
+            np.clip(- q_s + v_r - self.gamma * v_rplus1 - r - self.saber_epsilon, None, 0),
             0,
         )
     
     def compute_adops_f2(self, v_e, q_e, v_i, v_iplus1, f):
         return np.where(q_e < v_e,
-            np.clip(v_e - q_e + v_i - self.gamma * v_iplus1 - f - self.saber_epsilon, None, 0),
+            np.clip(v_e - q_e + v_i - self.gamma * v_iplus1 - f - self.adopes_epsilon, None, 0),
             np.clip(v_e - q_e + v_i - self.gamma * v_iplus1 - f, 0, None),
         )
 
 
-    def compute_returns_and_advantage(self, last_ext_values: th.Tensor, last_int_values: th.Tensor, last_cost_values: th.Tensor, dones: np.ndarray) -> None:
+    def compute_returns_and_advantage(self, last_ext_values: th.Tensor, last_int_values: th.Tensor, last_cost_values: th.Tensor, dones: np.ndarray, lagrangian: float) -> None:
         # Rescale extrinisc rewards
         self.rewards *= self.ext_rew_coef
 
@@ -172,25 +178,31 @@ class PPORolloutBuffer(BaseBuffer):
         last_int_gae_lam = 0
         last_cost_gae_lam = 0
         last_sb_gae_lam = 0
+        last_gae_lam = 0
         for step in reversed(range(self.buffer_size)):
             if step == self.buffer_size - 1:
                 next_non_terminal = 1.0 - dones
                 next_ext_values = last_ext_values
                 next_int_values = last_int_values
                 next_cost_values = last_cost_values
+                next_cost = np.zeros((self.n_envs,))
             else:
                 next_non_terminal = 1.0 - self.episode_starts[step + 1]
                 next_ext_values = self.ext_values[step + 1]
                 next_int_values = self.int_values[step + 1]
                 next_cost_values = self.cost_values[step + 1]
+                next_cost = self.costs[step + 1]
 
             q_ext = self.rewards[step] + self.gamma * next_ext_values * next_non_terminal
             q_int = self.intrinsic_rewards[step] + self.gamma * next_int_values  * next_non_terminal
             q_cost = self.costs[step]  + self.gamma * next_cost_values * next_non_terminal
-            q_s = np.clip(self.cost_limit - q_cost, None, 0)
-            v_s = np.clip(self.cost_limit - self.cost_values[step], None, 0)
+            q_s = -th.nn.functional.softplus(th.Tensor(q_cost) - self.cost_limit, 5000).numpy()
+            v_s = -th.nn.functional.softplus(th.Tensor(self.cost_values[step]) - self.cost_limit, 5000).numpy()
+            # q_s = np.clip(self.cost_limit - q_cost, None, 0)
+            # v_s = np.clip(self.cost_limit - self.cost_values[step], None, 0)
 
-            if self.saber_enabled:
+            # Shaping
+            if self.cost_objective == CostObj.SaBER:
                 q_ext += self._saber_zeta() * self.compute_saber_r2(v_s, q_s, self.ext_values[step], next_ext_values, self.rewards[step])
             if self.adops_enabled:
                 q_int += self._adops_zeta() * self.compute_adops_f2(self.ext_values[step], q_ext, self.int_values[step], next_int_values, self.intrinsic_rewards[step])
@@ -198,16 +210,35 @@ class PPORolloutBuffer(BaseBuffer):
             delta_ext = q_ext - self.ext_values[step]
             delta_int = q_int - self.int_values[step]
             delta_cost = q_cost - self.cost_values[step]
-            delta_sb = q_s - v_s
             last_ext_gae_lam = delta_ext + self.gamma * self.gae_lambda * next_non_terminal * last_ext_gae_lam
             last_int_gae_lam = delta_int + self.gamma * self.gae_lambda * next_non_terminal * last_int_gae_lam
             last_cost_gae_lam = delta_cost + self.gamma * self.gae_lambda * next_non_terminal * last_cost_gae_lam
-            last_sb_gae_lam = delta_sb + self.gamma * self.gae_lambda * next_non_terminal * last_sb_gae_lam
             self.ext_advantages[step] = last_ext_gae_lam
             self.int_advantages[step] = last_int_gae_lam
             self.cost_advantages[step] = last_cost_gae_lam
-            self.sb_advantages[step] = last_sb_gae_lam
-            
+
+            # True advantage
+            q_opt = q_ext +  q_int
+            v_opt = self.ext_values[step] + self.int_values[step]
+            if self.cost_objective == CostObj.Lag:
+                q_opt += - lagrangian * q_cost
+                v_opt += - lagrangian * self.cost_values[step]
+            if self.cost_objective == CostObj.SB:
+                q_opt += lagrangian * q_s
+                v_opt += lagrangian * v_s
+            if self.cost_objective == CostObj.SaBER:
+                zeta = self._saber_zeta()
+                q_opt += zeta * q_s
+                v_opt += zeta * v_s
+    
+            delta_opt = q_opt - v_opt
+            last_gae_lam = delta_opt + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
+            self.advantages[step] = last_gae_lam
+        
+            # if self.cost_objective == CostObj.SaBER:
+            #     self.ext_advantages[step] += self._saber_zeta() * self.compute_saber_r2(v_s, self.sb_advantages[step], self.ext_values[step], next_ext_values, self.rewards[step])
+            # if self.adops_enabled:
+            #     self.int_advantages[step] += self._adops_zeta() * self.compute_adops_f2(self.ext_values[step], self.ext_advantages[step], self.int_values[step], next_int_values, self.intrinsic_rewards[step])
 
         # TD(lambda) estimator, see Github PR #375 or "Telescoping in TD(lambda)"
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
@@ -215,34 +246,31 @@ class PPORolloutBuffer(BaseBuffer):
         self.int_returns = self.int_advantages + self.int_values
         self.cost_returns = self.cost_advantages + self.cost_values
 
+        # Combined advantage
+        # self.advantages = self.adv_ext_coeff * self.ext_advantages + self.adv_int_coeff * self.int_advantages
+                    
+        # Combine reward advantages with cost
+        # if self.cost_objective == CostObj.Lag:
+        #     self.advantages = (self.advantages - lagrangian * self.cost_advantages) / (1 + lagrangian)
+        # if self.cost_objective == CostObj.SB:
+        #     self.advantages = (self.advantages + lagrangian * self.sb_advantages) / (1 + lagrangian)
+        # if self.cost_objective == CostObj.SaBER:
+        #     zeta = self._saber_zeta()
+        #     self.advantages = (self.advantages + zeta * self.sb_advantages) / (1 + zeta)
+
         # Normalize advantages per rollout buffer
         if self.adv_norm:
-            self.ext_advantage_stats.update(self.ext_advantages)
-            self.int_advantage_stats.update(self.int_advantages)
-            self.cost_advantage_stats.update(self.cost_advantages)
-            self.sb_advantage_stats.update(self.sb_advantages)
-            self.ext_adv_mean = self.ext_advantage_stats.mean
-            self.ext_adv_std = self.ext_advantage_stats.std
-            self.int_adv_mean = self.int_advantage_stats.mean
-            self.int_adv_std = self.int_advantage_stats.std
-            self.cost_adv_mean = self.cost_advantage_stats.mean
-            self.cost_adv_std = self.cost_advantage_stats.std
-            self.sb_adv_mean = self.sb_advantage_stats.mean
-            self.sb_adv_std = self.sb_advantage_stats.std
+            self.advantage_stats.update(self.advantages)
+            self.adv_mean = self.advantage_stats.mean
+            self.adv_std = self.advantage_stats.std
 
             # Standardization
             if self.adv_norm == 2:
-                self.ext_advantages = (self.ext_advantages - self.ext_adv_mean) / (self.ext_adv_std + self.adv_eps)
-                self.int_advantages = (self.int_advantages - self.int_adv_mean) / (self.int_adv_std + self.adv_eps)
-                self.cost_advantages = (self.cost_advantages - self.cost_adv_mean) / (self.cost_adv_std + self.adv_eps)
-                self.sb_advantages = self.sb_advantages / (self.sb_adv_std + self.adv_eps)
+                self.advantages = (self.advantages - self.adv_mean) / (self.adv_std + self.adv_eps)
 
             # Standardization without subtracting the mean value
             if self.adv_norm == 3:
-                self.ext_advantages = self.ext_advantages / (self.ext_adv_std + self.adv_eps)
-                self.int_advantages = self.int_advantages / (self.int_adv_std + self.adv_eps)
-                self.cost_advantages = self.cost_advantages / (self.cost_adv_std + self.adv_eps)
-                self.sb_advantages = self.sb_advantages / (self.sb_adv_std + self.adv_eps)
+                self.advantages = self.advantages / (self.adv_std + self.adv_eps)
 
     def add(
         self,
@@ -313,10 +341,7 @@ class PPORolloutBuffer(BaseBuffer):
                 "cost_values",
                 "log_probs",
                 "entropy",
-                "ext_advantages",
-                "int_advantages",
-                "cost_advantages",
-                "sb_advantages",
+                "advantages",
                 "ext_returns",
                 "int_returns",
                 "cost_returns",
@@ -361,10 +386,7 @@ class PPORolloutBuffer(BaseBuffer):
             self.cost_values[batch_inds].flatten(),
             self.log_probs[batch_inds].flatten(),
             self.entropy[batch_inds].flatten(),
-            self.ext_advantages[batch_inds].flatten(),
-            self.int_advantages[batch_inds].flatten(),
-            self.cost_advantages[batch_inds].flatten(),
-            self.sb_advantages[batch_inds].flatten(),
+            self.advantages[batch_inds].flatten(),
             self.ext_returns[batch_inds].flatten(),
             self.int_returns[batch_inds].flatten(),
             self.cost_returns[batch_inds].flatten(),

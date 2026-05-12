@@ -74,6 +74,7 @@ def train(config):
         ngu_use_rnd=config.ngu_use_rnd,
         rnd_err_norm=config.rnd_err_norm,
         rnd_err_momentum=config.rnd_err_momentum,
+        sc_decay=config.sc_decay,
         rnd_use_policy_emb=config.rnd_use_policy_emb,
         dsc_obs_queue_len=config.dsc_obs_queue_len,
         log_dsc_verbose=config.log_dsc_verbose,
@@ -158,13 +159,13 @@ def train(config):
 @click.option('--log_dir', default='./logs', type=str, help='Directory for saving training logs and snapshots')
 @click.option('--total_steps', default=int(10240000), type=int, help='Total number of frames to run for training')
 @click.option('--features_dim', default=64, type=int, help='Number of neurons of a learned embedding (PPO)')
-@click.option('--model_features_dim', default=64, type=int,
+@click.option('--model_features_dim', default=128, type=int,
               help='Number of neurons of a learned embedding (dynamics model)')
-@click.option('--learning_rate', default=1e-4, type=float, help='Learning rate of PPO')
+@click.option('--learning_rate', default=3e-4, type=float, help='Learning rate of PPO')
 @click.option('--model_learning_rate', default=3e-4, type=float, help='Learning rate of the dynamics model')
 @click.option('--num_processes', default=16, type=int, help='Number of training processes (workers)')
-@click.option('--batch_size', default=256, type=int, help='Batch size')
-@click.option('--n_steps', default=128, type=int, help='Number of steps to run for each process per update')
+@click.option('--batch_size', default=512, type=int, help='Batch size')
+@click.option('--n_steps', default=512, type=int, help='Number of steps to run for each process per update')
 # Env params
 @click.option('--env_source', default='minigrid', type=str, help='minigrid or atari (no procgen support)')
 @click.option('--game_name', default="DoorKey-8x8", type=str, help='e.g. DoorKey-8x8, FourRooms, RedBlueDoors-8x8')
@@ -183,7 +184,7 @@ def train(config):
 @click.option('--gae_lambda', default=0.95, type=float, help='GAE lambda')
 @click.option('--pg_coef', default=1.0, type=float, help='Coefficient of policy gradients')
 @click.option('--vf_coef', default=0.5, type=float, help='Coefficient of value function loss')
-@click.option('--ent_coef', default=5e-4, type=float, help='Coefficient of policy entropy')
+@click.option('--ent_coef', default=0.01, type=float, help='Coefficient of policy entropy')
 @click.option('--max_grad_norm', default=0.5, type=float, help='Maximum norm of gradient')
 @click.option('--clip_range', default=0.2, type=float, help='PPO clip range of the policy network')
 @click.option('--clip_range_vf', default=-1, type=float,
@@ -213,10 +214,11 @@ def train(config):
               help='EMA smoothing factor for averaging embedding distances (NGU)')
 @click.option('--rnd_use_policy_emb', default=1, type=int,
               help='Whether to use the embeddings learned by policy/value nets as inputs (RND)')
-@click.option('--rnd_err_norm', default=0, type=int,
+@click.option('--rnd_err_norm', default=1, type=int,
               help='Normalized RND errors by: [0] No normalization [1] Standardization [2] Min-max normalization [3] Standardization w.o. subtracting the mean')
 @click.option('--rnd_err_momentum', default=-1, type=float,
               help='EMA smoothing factor for RND error normalization (-1: total average)')
+@click.option("--sc_decay", type=float, default=2.0, help="Inverse decay D of state count reward. A state visited N times grants a reward of N^(-1/D). Higher value means IR decays slower.")
 # Reward shaping params
 @click.option('--int_shape_source', default='NoRS', type=str,
               help='Source of rewarde shaping for IRs: [NoRS|PBIM|GRM|ADOPES]')
@@ -288,7 +290,7 @@ def main(
     gamma, gae_lambda, pg_coef, vf_coef, ent_coef, max_grad_norm, clip_range, clip_range_vf, adv_norm, adv_eps,
     adv_momentum, adv_ext_coeff, adv_int_coeff, ext_rew_coef, int_rew_coef, int_rew_source, int_rew_norm, int_rew_momentum, int_rew_eps, int_rew_clip,
     dsc_obs_queue_len, icm_forward_loss_coef, ngu_knn_k, ngu_use_rnd, ngu_dst_momentum, rnd_use_policy_emb,
-    rnd_err_norm, rnd_err_momentum, int_shape_source, grm_delay, adopes_epsilon, pies_decay, cost_critic, cost_objective, cost_limit, lagrange_learning_rate, lagrange_initial_value, 
+    rnd_err_norm, rnd_err_momentum, sc_decay, int_shape_source, grm_delay, adopes_epsilon, pies_decay, cost_critic, cost_objective, cost_limit, lagrange_learning_rate, lagrange_initial_value, 
     saber_epsilon, saber_zeta_min_rollout, saber_zeta_max_rollout, enable_cost, cost_as_ir, collision_cost, termination_cost,
     use_model_rnn, latents_dim, model_latents_dim, policy_cnn_type, policy_cnn_layers, policy_mlp_layers,
     policy_cnn_norm, policy_mlp_norm, policy_gru_norm, model_cnn_type, model_mlp_layers, model_cnn_norm, model_mlp_norm,
