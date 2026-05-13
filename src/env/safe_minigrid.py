@@ -394,7 +394,7 @@ class SafeMoatMaze8x8Env(MiniGridEnv):
         height = 8
         self.guard_pos = (5, 6)
         self.moat_pos = (5, 4)
-        self.goal_pos = (6, 4)
+        self.goal_pos = (6, 3)
         self.guard_prob = guard_prob
 
         mission_space = MissionSpace(mission_func=self._gen_mission)
